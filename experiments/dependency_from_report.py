@@ -36,8 +36,7 @@ def parse_name(name: str):
 
 
 def allowed_module(module: ET.Element):
-    return module.get("kind") == "CompiledPythonModule" and module.get("source_path", '').startswith("${cwd}/backend/main")
-
+    return (module.get("kind") == "CompiledPythonModule" and module.get("source_path", '').startswith("${cwd}/backend/main") and parse_name(module.get("name")) != "log")
 
 # Parse module dependencies
 for module in root.findall("module"):
@@ -45,6 +44,7 @@ for module in root.findall("module"):
         # print("Adding module:", module.get("name"), module.get("usage"),
         #       module.get("kind"), module.get("source_path"))
         module_name = parse_name(module.get("name"))
+
         G.add_node(module_name)
 
 for module in root.findall("module"):
@@ -126,7 +126,8 @@ node_trace = go.Scatter(
 )
 
 # Create figure
-fig = go.Figure(data=[node_trace])
+fig = go.Figure(data=[node_trace #,edge_trace # using annotations now
+                      ])
 fig.update_layout(
     title="Dependency Graph from Nuitka Compilation Report",
     showlegend=False,
