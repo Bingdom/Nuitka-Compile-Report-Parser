@@ -7,6 +7,7 @@ from dash.development.base_component import Component
 from _types import NumberLike
 from plot import size, time
 from threading import Thread
+from experiments import dependency_from_report
 
 app = Dash(__name__)
 OUTPUT_DIR = "export"
@@ -47,6 +48,8 @@ app.layout = html.Div([
     html.Ul([
         html.Li(f"{module}: {s}") for module, s in largest_sizes.items()]),
     dcc.Graph(figure=size.plot.fig, id='graph2', style={'height': '70vh'}),
+    dcc.Graph(figure=dependency_from_report.fig,
+              id='graph3', style={'height': '70vh'}),
 ])
 
 _include_plotlyjs = True
