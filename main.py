@@ -8,9 +8,11 @@ from _types import NumberLike
 from plot import size, time
 from threading import Thread
 from experiments import dependency_from_report
+import helpers
 
 app = Dash(__name__)
 OUTPUT_DIR = "export"
+FILE = "compilation-report.xml"
 
 
 def calc_largest(sorted_modules: list[dict[dict[str, NumberLike]]], parser: Callable[[NumberLike], str]):
@@ -32,6 +34,24 @@ longest_times = calc_largest(time.plot.sorted_modules, time.time_fmt)
 largest_sizes = calc_largest(size.plot.sorted_modules, size.sizeof_fmt)
 
 app.layout = html.Div([
+    html.H4('Command line'),
+    html.Ul([html.Li(command) for command in helpers.get_command_line(FILE)]),
+    html.H4('Plugin options'),
+    html.Table([
+        html.Thead([
+            html.Tr([
+                html.Th('Name'),
+                html.Th('User Enabled')
+            ])
+        ]),
+        html.Tbody([
+            html.Tr([
+                html.Td(name),
+                html.Td(enabled)
+            ]) for name, enabled in helpers.get_plugins(FILE)
+        ])
+    ]),
+
     html.H4('Build time Summary'),
     html.P(f"Total compile time: {time.time_fmt(time.plot.total)}"),
     html.P(
@@ -48,6 +68,9 @@ app.layout = html.Div([
     html.Ul([
         html.Li(f"{module}: {s}") for module, s in largest_sizes.items()]),
     dcc.Graph(figure=size.plot.fig, id='graph2', style={'height': '70vh'}),
+    html.H4('Dependency Summary'),
+    html.P(
+        f"High-level node count: {len(dependency_from_report.G.nodes())}"),
     dcc.Graph(figure=dependency_from_report.fig,
               id='graph3', style={'height': '70vh'}),
 ])
