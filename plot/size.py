@@ -27,11 +27,14 @@ def module_parser(file_path: str):
             if module_name.split(".")[0] == "":
                 module_name = module.get("filename", "Unknown")
 
+            modules = module_name.split(".")
+
             # Assume self if no parent
-            parent_module = module_name.split(".")[0]
+            parent_module = modules[0]
             module_size = int(module.get("blob_size", 0))
 
-            module_sizes[parent_module][module_name] = module_size
+            module_sizes[parent_module][module_name if len(
+                modules) <= 1 else ".".join(modules[:-1])] += module_size
             total_size += module_size
 
     for data_file in root.findall("data_file"):
