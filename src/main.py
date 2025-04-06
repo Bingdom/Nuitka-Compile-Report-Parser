@@ -4,10 +4,10 @@ from typing import Callable, Literal
 import minify_html_onepass
 from dash import Dash, dcc, html
 from dash.development.base_component import Component
-from _types import NumberLike
+from src.types import NumberLike
 from src.plot import size, time
 from src.experiments import dependency_from_report
-import helpers
+import src.helpers as helpers
 import argparse
 
 parser = argparse.ArgumentParser(

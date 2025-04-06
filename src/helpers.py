@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from _types import NumberLike
+from src.types import NumberLike
 
 
 def sizeof_fmt(num: NumberLike, suffix="B"):
