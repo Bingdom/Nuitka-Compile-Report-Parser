@@ -44,8 +44,9 @@ def module_parser(file_path: str):
     return module_sizes, total_size
 
 
-plot = Plotter("compilation-report.xml", module_parser, sizeof_fmt,
-               "Bytecode build size by Root Module with Submodules", "Bytecode Build Size (bytes)", "Root Module Name")
+def get_plotter(filename: str):
+    return Plotter(filename, module_parser, sizeof_fmt,
+                   "Bytecode build size by Root Module with Submodules", "Bytecode Build Size (bytes)", "Root Module Name")
 
 # # Sort root modules by total time taken
 # sorted_modules = sorted(module_sizes.items(),
