@@ -88,7 +88,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         html.H4('Build time Summary'),
         html.P(f"Total compile time: {time.time_fmt(time_graph.total)}"),
         html.P(
-            f"Total root modules: {len(time_graph.module_parsed)} (incl. submodules: {sum(len(submodules) for submodules in time_graph.module_parsed.values())})"),
+            f"Total root modules: {len(time_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in time_graph.module_parsed.values())})"),
         html.H4("Largest submodule build time"),
         html.Ul([
             html.Li(f"{module}: {time}") for module, time in longest_times.items()]),
@@ -97,14 +97,14 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         html.P(
             f"Total bytecode size: {size.sizeof_fmt(size_graph.total)}"),
         html.P(
-            f"Total root modules: {len(size_graph.module_parsed)} (incl. submodules: {sum(len(submodules) for submodules in size_graph.module_parsed.values())})"),
+            f"Total root modules: {len(size_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in size_graph.module_parsed.values())})"),
         html.Ul([
             html.Li(f"{module}: {s}") for module, s in largest_sizes.items()]),
         dcc.Graph(figure=size_graph.fig, id='graph2',
                   style={'height': '70vh'}),
         html.H4('Dependency Summary'),
         html.P(
-            f"High-level node count: {len(dep_graph.nodes())}"),
+            f"Node count: {len(dep_graph.nodes())}"),
         dcc.Graph(figure=dep_fig,
                   id='graph3', style={'height': '70vh'}),
     ])
