@@ -2,9 +2,12 @@
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.version]
+path = "nuitka_reporter/__init__.py"
+
 [project]
 name = "nuitka_reporter"
-version = "0.1.0"
+dynamic = ["version"]
 authors = [
   { name="James Morrow", email="james@corner.dev" },
 ]
