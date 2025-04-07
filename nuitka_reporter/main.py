@@ -9,6 +9,7 @@ from .plot import size, time
 from .experiments import dependency_from_report
 from .helpers import get_command_line, get_plugins
 
+
 def calc_largest(sorted_modules: list[dict[dict[str, NumberLike]]], parser: Callable[[NumberLike], str]):
     largest = defaultdict(str)
     for root_module, submodules in sorted_modules:
@@ -55,7 +56,7 @@ def layout_to_html(component: Component | list[Component], include_plotlyjs: boo
     return minify_html_onepass.minify(f"<body>{html_child(component)}</body>", minify_js=True, minify_css=True)
 
 
-def to_html(filename: str, export_directory: str = "export"):
+def to_html(filename: str, export_directory: str = "."):
     """Input a compile report to output a html file equivalent"""
     app = Dash(__name__)
     size_graph = size.get_plotter(filename)
