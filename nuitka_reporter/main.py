@@ -56,7 +56,7 @@ def layout_to_html(component: Component | list[Component], include_plotlyjs: boo
     return minify_html_onepass.minify(f"<body>{html_child(component)}</body>", minify_js=True, minify_css=True)
 
 
-def to_html(filename: str, export_directory: str = "."):
+def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
     """Input a compile report to output a html file equivalent"""
     app = Dash(__name__)
     size_graph = size.get_plotter(filename)
@@ -108,8 +108,6 @@ def to_html(filename: str, export_directory: str = "."):
         dcc.Graph(figure=dep_fig,
                   id='graph3', style={'height': '70vh'}),
     ])
-    os.makedirs(export_directory, exist_ok=True)
-    html_file = os.path.join(export_directory, "index.html")
-    with open(html_file, "w", encoding="utf-8") as f:
+    with open(export_filename, "w", encoding="utf-8") as f:
         f.write(layout_to_html(app.layout, 'cdn'))
-    return html_file
+    return export_filename
