@@ -5,7 +5,7 @@ import os
 def test_generate():
     current_dir = os.path.dirname(__file__)
     filename = os.path.join(current_dir, "data/compilation-report.xml")
-    output_filename = to_html(os.path.join(filename, current_dir))
+    output_filename = to_html(filename)
 
     assert filename == output_filename, "Input filename must match with output filename"
 
