@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
-from src.types import NumberLike
+from nuitka_reporter._types import NumberLike
 
 
 def sizeof_fmt(num: NumberLike, suffix="B"):

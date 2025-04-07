@@ -1,6 +1,6 @@
 from typing import Callable
 import plotly.graph_objects as go
-from src.types import NumberLike
+from nuitka_reporter._types import NumberLike
 
 
 class Plotter():

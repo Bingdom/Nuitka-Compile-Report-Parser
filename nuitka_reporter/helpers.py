@@ -1,6 +1,6 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
-from src.types import NumberLike
+from ._types import NumberLike
 
 
 def sizeof_fmt(num: NumberLike, suffix="B"):
@@ -24,6 +24,7 @@ def get_plugins(file_path: str):
 
     return to_return
 
+
 def get_command_line(file_path: str):
     tree = ET.parse(file_path)
     root = tree.getroot()
@@ -34,5 +35,5 @@ def get_command_line(file_path: str):
     for plugins in root.findall("command_line"):
         for plugin in plugins.findall("option"):
             to_return.append(plugin.get("value"))
-    
+
     return to_return

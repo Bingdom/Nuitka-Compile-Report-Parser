@@ -21,8 +21,6 @@ dependencies = [
     "dash>=3.0.2",
     "plotly>=6.0.1"
 ]
-[project.scripts]
-nuitka_reporter = "src.main"
 
 [project.urls]
 "Homepage" = "https://github.com/CryoDryOfficial/Pfeiffer-Vacuum-Protocol"
