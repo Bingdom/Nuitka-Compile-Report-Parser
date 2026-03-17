@@ -23,7 +23,8 @@ dependencies = [
     "minify-html-onepass==0.15.0",
     "dash>=3.0.2",
     "plotly>=6.0.1",
-    "networkx>=3.4.2"
+    "networkx>=3.4.2",
+    "numpy>=2.2.4"
 ]
 
 [project.urls]
