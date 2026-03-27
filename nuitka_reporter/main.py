@@ -2,7 +2,7 @@ import os
 from collections import defaultdict
 from typing import Callable
 import minify_html_onepass
-from dash import Dash, dcc, html
+from dash import dcc, html
 from dash.development.base_component import Component
 from ._types import NumberLike
 from .plot import size, time
@@ -28,9 +28,11 @@ def get_largest_submodule(sorted_modules: list[dict[dict[str, NumberLike], Numbe
     return largest
 
 
-def layout_to_html(component: Component | list[Component]):
+def component_to_html(component: Component | list[Component]):
     """
-    Converts a Dash layout into a HTML string.
+    Recursively converts Dash component(s) into an HTML string.
+
+    *Note: This function is not well tested and may not cover all edge cases of Dash components.*
     """
     # Include the plotly.js library only for the first graph to avoid duplicate script tags
     has_included_plotlyjs = False
@@ -74,7 +76,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     largest_sizes = get_largest_submodule(
         size_graph.sorted_modules, size.sizeof_fmt)
 
-    layout = html.Div([
+    component = html.Div([
         html.H4('Command line'),
         html.Ul([html.Li(command)
                 for command in get_command_line(filename)]),
@@ -117,5 +119,5 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                   id='graph3', style={'height': '70vh'}),
     ])
     with open(export_filename, "w", encoding="utf-8") as f:
-        f.write(layout_to_html(layout))
+        f.write(component_to_html(component))
     return export_filename
