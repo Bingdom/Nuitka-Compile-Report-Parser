@@ -62,7 +62,7 @@ pipx run --spec git+https://github.com/Bingdom/Nuitka-Compile-Report-Parser nuit
 ```python
 import nuitka_reporter
 
-html = nuitka_reporter.to_html("compilation-report.xml")
+output_dir = nuitka_reporter.to_html("compilation-report.xml")
 # or specify an output path
-html = nuitka_reporter.to_html("compilation-report.xml", "my-report.html")
+output_dir = nuitka_reporter.to_html("compilation-report.xml", "my-report.html")
 ```
