@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 import networkx as nx
 import plotly.graph_objects as go
+from ..helpers import get_parsed_file
 
 
 def parse_name(name: str):
@@ -12,8 +13,7 @@ def allowed_module(module: ET.Element):
 
 
 def get_fig(filename: str):
-    tree = ET.parse(filename)
-    root = tree.getroot()
+    root = get_parsed_file(filename)
 
     # Create a directed graph
     G = nx.DiGraph()

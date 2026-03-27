@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
 from .._types import NumberLike
+from ..helpers import get_parsed_file
 
 
 def sizeof_fmt(bytes_count: int | float):
@@ -23,8 +24,7 @@ def module_parser(file_path: str):
       Each submodule key is the full module path (e.g. "sqlalchemy.orm.session").
     - The total size of all modules.
     """
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+    root = get_parsed_file(file_path)
     # Dictionary to store optimization time per root module and its submodules
     module_sizes = defaultdict[str, defaultdict[str, NumberLike]](
         lambda: defaultdict(int))

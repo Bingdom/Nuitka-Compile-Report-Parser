@@ -1,6 +1,7 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
+from ..helpers import get_parsed_file
 
 
 def time_fmt(seconds: float):
@@ -29,8 +30,7 @@ def module_parser(file_path: str):
         lambda: defaultdict(float))
     total_time = 0.0
 
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+    root = get_parsed_file(file_path)
 
     # Iterate over modules and sum optimization times
     for module in root.findall("module"):

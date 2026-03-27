@@ -1,12 +1,19 @@
 import xml.etree.ElementTree as ET
+from functools import cache
+
+
+@cache
+def get_parsed_file(file_path: str):
+    tree = ET.parse(file_path)
+    return tree.getroot()
+
 
 
 def get_plugin_options(file_path: str):
     """
     Returns a list of tuples containing plugin names and their user-enabled status.
     """
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+    root = get_parsed_file(file_path)
 
     to_return: list[tuple[str, str]] = []
 
@@ -25,8 +32,7 @@ def get_command_line(file_path: str):
     """
     Returns a list of command line options used on Nuitka.
     """
-    tree = ET.parse(file_path)
-    root = tree.getroot()
+    root = get_parsed_file(file_path)
 
     to_return: list[str] = []
 
