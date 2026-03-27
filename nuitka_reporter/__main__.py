@@ -17,8 +17,8 @@ def main():
     )
 
     args = parser.parse_args()
-    html_file = to_html(args.report, args.output)
-    return html_file
+    out_file = to_html(args.report, args.output)
+    print(f"HTML report generated: {out_file}")
 
 
 if __name__ == "__main__":
