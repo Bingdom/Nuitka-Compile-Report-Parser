@@ -6,9 +6,46 @@ from dash import dcc, html
 from dash.development.base_component import Component
 from ._types import NumberLike
 from .plot import size, time
+from .plot.plotter import Plotter
 from .experiments import dependency_from_report
 from .helpers import get_command_line, get_plugin_options
 from typing import NamedTuple
+
+
+SWITCH_GRAPH_JS = """<script>
+function switchGraph(id, type) {
+    ['bar', 'treemap', 'sunburst'].forEach(function(t) {
+        document.getElementById(id + '_' + t).style.display = t === type ? '' : 'none';
+        document.getElementById(id + '_' + t + '_btn').style.fontWeight = t === type ? 'bold' : 'normal';
+    });
+    var plotDiv = document.getElementById(id + '_' + type).querySelector('.plotly-graph-div');
+    if (plotDiv) Plotly.Plots.resize(plotDiv);
+}
+</script>"""
+
+
+def switchable_graph_html(plotter: Plotter, graph_id: str, include_plotlyjs: bool = False) -> str:
+    """Generate raw HTML with toggle buttons to switch between bar chart, treemap, and sunburst."""
+    bar_html = plotter.get_figure("bar").to_html(
+        include_plotlyjs='cdn' if include_plotlyjs else False, full_html=False)
+    treemap_html = plotter.get_figure("treemap").to_html(
+        include_plotlyjs=False, full_html=False)
+    sunburst_html = plotter.get_figure("sunburst").to_html(
+        include_plotlyjs=False, full_html=False)
+
+    return (
+        f'<div>'
+        f'<button onclick="switchGraph(\'{graph_id}\',\'bar\')" '
+        f'id="{graph_id}_bar_btn" style="font-weight:bold">Bar Chart</button> '
+        f'<button onclick="switchGraph(\'{graph_id}\',\'treemap\')" '
+        f'id="{graph_id}_treemap_btn">Treemap</button> '
+        f'<button onclick="switchGraph(\'{graph_id}\',\'sunburst\')" '
+        f'id="{graph_id}_sunburst_btn">Sunburst</button>'
+        f'<div id="{graph_id}_bar">{bar_html}</div>'
+        f'<div id="{graph_id}_treemap" style="display:none">{treemap_html}</div>'
+        f'<div id="{graph_id}_sunburst" style="display:none">{sunburst_html}</div>'
+        f'</div>'
+    )
 
 
 class LargestSubmodule(NamedTuple):
@@ -34,7 +71,8 @@ def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, Numbe
                 biggest_module = submodule
 
         # Try to get the submodule name without the root module for easier reading
-        biggest_module = f".<b>{biggest_module.split('.')[-1]}</b>" if biggest_module.startswith(root_module + ".") else ' (root)'
+        biggest_module = f".<b>{'.'.join(biggest_module.split('.')[1:])}</b>" if biggest_module.startswith(
+            root_module + ".") else ' (root)'
 
         largest_submodules.append(LargestSubmodule(
             root_module, biggest_module, formatter(biggest_value)))
@@ -116,7 +154,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         html.H4("Largest submodule build times summary"),
         html.Ul([
             html.Li(f"{module}{submodule}: {time}") for module, submodule, time in longest_times]),
-        dcc.Graph(figure=time_graph.fig, id='graph', style={'height': '70vh'}),
+        switchable_graph_html(time_graph, 'time_graph', include_plotlyjs=True),
+        SWITCH_GRAPH_JS,
         html.H4('Largest submodule sizes summary'),
         html.P(
             f"Total bytecode size: {size.sizeof_fmt(size_graph.total)}"),
@@ -124,13 +163,11 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
             f"Total root modules: {len(size_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in size_graph.module_parsed.values())})"),
         html.Ul([
             html.Li(f"{module}{submodule}: {s}") for module, submodule, s in largest_sizes]),
-        dcc.Graph(figure=size_graph.fig, id='graph2',
-                  style={'height': '70vh'}),
+        switchable_graph_html(size_graph, 'size_graph'),
         html.H4('Dependency Summary'),
         html.P(
             f"Node count: {len(dep_graph.nodes())}"),
-        dcc.Graph(figure=dep_fig,
-                  id='graph3', style={'height': '70vh'}),
+        dep_fig.to_html(include_plotlyjs=False, full_html=False),
     ])
     with open(export_filename, "w", encoding="utf-8") as f:
         f.write(component_to_html(component))

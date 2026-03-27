@@ -21,10 +21,12 @@ def module_parser(file_path: str):
     """
     Parses the XML file at the given file path and returns a tuple containing:
     - A dictionary mapping root modules to their submodules and optimization times.
+      Each submodule key is the full module path (e.g. "sqlalchemy.orm.session").
     - The total optimization time of all modules.
     """
     # Dictionary to store optimization time per root module and its submodules
-    module_times = defaultdict[str, defaultdict[str, float]](lambda: defaultdict(float))
+    module_times = defaultdict[str, defaultdict[str, float]](
+        lambda: defaultdict(float))
     total_time = 0.0
 
     tree = ET.parse(file_path)
@@ -41,8 +43,7 @@ def module_parser(file_path: str):
         for opt_time in module.findall("optimization-time"):
             module_time += float(opt_time.get("time", 0.0))
 
-        module_times[parent_module][module_name if len(
-            modules) <= 1 else ".".join(modules[:-1])] += module_time
+        module_times[parent_module][module_name] += module_time
         total_time += module_time
 
     return module_times, total_time

@@ -20,6 +20,7 @@ def module_parser(file_path: str):
     """
     Parses the XML file at the given file path and returns a tuple containing:
     - A dictionary mapping root modules to their submodules and sizes.
+      Each submodule key is the full module path (e.g. "sqlalchemy.orm.session").
     - The total size of all modules.
     """
     tree = ET.parse(file_path)
@@ -42,8 +43,7 @@ def module_parser(file_path: str):
             parent_module = modules[0]
             module_size = int(module.get("blob_size", 0))
 
-            module_sizes[parent_module][module_name if len(
-                modules) <= 1 else ".".join(modules[:-1])] += module_size
+            module_sizes[parent_module][module_name] += module_size
             total_size += module_size
 
     for data_file in root.findall("data_file"):
