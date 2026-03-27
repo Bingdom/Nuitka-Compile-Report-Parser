@@ -4,7 +4,7 @@ from .main import to_html
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="nuitka_reporter",
+        prog="nuitka-reporter",
         description="Parses a compilation report from nuitka and outputs a html file"
     )
 
