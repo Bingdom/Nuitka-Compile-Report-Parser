@@ -65,7 +65,6 @@ def layout_to_html(component: Component | list[Component]):
 
 def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
     """Input a compile report to output a html report file with visualizations and summaries of the build time, build size, and dependency graph. The HTML file is saved to the specified export filename (or default, index.html next to the specified compile report)."""
-    app = Dash(__name__)
     size_graph = size.get_plotter(filename)
     time_graph = time.get_plotter(filename)
     dep_fig, dep_graph = dependency_from_report.get_fig(filename)
@@ -75,7 +74,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     largest_sizes = get_largest_submodule(
         size_graph.sorted_modules, size.sizeof_fmt)
 
-    app.layout = html.Div([
+    layout = html.Div([
         html.H4('Command line'),
         html.Ul([html.Li(command)
                 for command in get_command_line(filename)]),
@@ -118,5 +117,5 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                   id='graph3', style={'height': '70vh'}),
     ])
     with open(export_filename, "w", encoding="utf-8") as f:
-        f.write(layout_to_html(app.layout))
+        f.write(layout_to_html(layout))
     return export_filename
