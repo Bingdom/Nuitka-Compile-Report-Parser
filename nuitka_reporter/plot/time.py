@@ -3,16 +3,18 @@ from collections import defaultdict
 from .plotter import Plotter
 
 
-def time_fmt(time: float):
+def time_fmt(seconds: float):
     """
     Formats time in a human readable format. If time is less than 1 second, it is formatted in milliseconds. If time is less than 60 seconds, it is formatted in seconds. Otherwise, it is formatted in minutes and seconds.
     """
-
-    if time < 1:
-        return f"{int(time*1000)}ms"
-    if time < 60:
-        return f"{int(time)}s"
-    return f"{int(time/60)}:{int(time % 60)}"
+    if seconds < 1:
+        return f"{int(seconds * 1000)}ms"
+    elif seconds < 60:
+        return f"{seconds:.2f}s"
+    else:
+        minutes = int(seconds // 60)
+        remaining_seconds = seconds % 60
+        return f"{minutes}m {remaining_seconds:.1f}s"
 
 
 def module_parser(file_path: str):
