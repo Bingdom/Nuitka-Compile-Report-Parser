@@ -4,17 +4,21 @@ from .main import to_html
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Parses a compilation report from nuitka and outputs a html file")
-    parser.add_argument(
-        "compile-filename", type=str, help="Path to the compilation report file",
+        prog="nuitka_reporter",
+        description="Parses a compilation report from nuitka and outputs a html file"
     )
+
     parser.add_argument(
-        "export-filename", type=str, nargs='?', default='report.html', help="Optional export filename as a .html file. Defaults to 'report.html' if not provided."
+        "report", type=str, help="Input a file path to the compilation report file (ex. './compilation-report.xml') that you want to parse and visualize.",
     )
+
+    parser.add_argument(
+        "output", type=str, nargs='?', default='report.html', help="Optional export filename as a .html file. Defaults to './report.html' if not provided."
+    )
+
     args = parser.parse_args()
-    html_file = to_html(getattr(args, "compile-filename"),
-                        getattr(args, "export-filename"))
-    print(f"HTML report generated at: {html_file}")
+    html_file = to_html(args.report, args.output)
+    return html_file
 
 
 if __name__ == "__main__":
