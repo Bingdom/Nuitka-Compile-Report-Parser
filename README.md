@@ -4,6 +4,13 @@ Can be used with command line arguments
 python3 -m nuitka_reporter "compile-report.xml"
 ```
 
+Or as executable
+
+```sh
+uvx git+https://github.com/Bingdom/Nuitka-Compile-Report-Parser "compile-report.xml"
+pipx run --spec git+https://github.com/Bingdom/Nuitka-Compile-Report-Parser nuitka-reporter "compile-report.xml"
+```
+
 Or as a module
 
 ```py
