@@ -34,8 +34,7 @@ def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, Numbe
                 biggest_module = submodule
 
         # Try to get the submodule name without the root module for easier reading
-        biggest_module = f".<b>{biggest_module.split(
-            ".")[-1]}</b>" if biggest_module.startswith(root_module + ".") else ' (root)'
+        biggest_module = f".<b>{biggest_module.split('.')[-1]}</b>" if biggest_module.startswith(root_module + ".") else ' (root)'
 
         largest_submodules.append(LargestSubmodule(
             root_module, biggest_module, formatter(biggest_value)))
