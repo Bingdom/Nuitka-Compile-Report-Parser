@@ -102,6 +102,6 @@ def plot_import_graph(graph):
 
 
 # Define the project directory (modify as needed)
-project_directory = "C:/Users/frogp/Documents/GitHub/FreezeDryer/backend/main"
+project_directory = "../GitHub/MyProject"
 graph = build_import_graph(project_directory)
 fig = plot_import_graph(graph)
