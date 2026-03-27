@@ -91,7 +91,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                 html.Tr([
                     html.Td(name),
                     html.Td(enabled)
-                ]) for name, enabled in get_plugins(filename)
+                ]) for name, enabled in get_plugin_options(filename)
             ])
         ]),
         html.H4('Build time Summary'),
