@@ -1,5 +1,4 @@
 import argparse
-from typing import Optional
 from .main import to_html
 
 

@@ -1,17 +1,20 @@
 import os
 from collections import defaultdict
-from typing import Callable, Literal
+from typing import Callable
 import minify_html_onepass
 from dash import Dash, dcc, html
 from dash.development.base_component import Component
 from ._types import NumberLike
 from .plot import size, time
 from .experiments import dependency_from_report
-from .helpers import get_command_line, get_plugins
+from .helpers import get_command_line, get_plugin_options
 
 
-def calc_largest(sorted_modules: list[dict[dict[str, NumberLike]]], parser: Callable[[NumberLike], str]):
-    largest = defaultdict(str)
+def get_largest_submodule(sorted_modules: list[dict[dict[str, NumberLike], NumberLike]], formatter: Callable[[NumberLike], str]):
+    """
+    From within a module, find the largest submodule and format its value using the provided formatter. Returns a dict of submodule name to formatted value.
+    """
+    largest = defaultdict[str, str](str)
     for root_module, submodules in sorted_modules:
         biggest_module = ""
         biggest_time = 0
@@ -20,31 +23,35 @@ def calc_largest(sorted_modules: list[dict[dict[str, NumberLike]]], parser: Call
                 biggest_time = time
                 biggest_module = submodule
 
-        largest[biggest_module] = parser(biggest_time)
+        largest[biggest_module] = formatter(biggest_time)
 
     return largest
 
 
-_include_plotlyjs = True
-
-
-def layout_to_html(component: Component | list[Component], include_plotlyjs: bool | Literal['cdn'] = True):
-    global _include_plotlyjs
-    _include_plotlyjs = include_plotlyjs
+def layout_to_html(component: Component | list[Component]):
+    """
+    Converts a Dash layout into a HTML string.
+    """
+    # Include the plotly.js library only for the first graph to avoid duplicate script tags
+    has_included_plotlyjs = False
 
     def html_child(component: Component | list[Component]):
-        global _include_plotlyjs
+        """
+        Recursively converts a Dash component or a list of components into an HTML string.
+        Ensuring that the plotly.js library is included only once for all graphs.
+        """
+        nonlocal has_included_plotlyjs
         if isinstance(component, list):
             return ''.join(html_child(child) for child in component)
 
         if isinstance(component, dcc.Graph):
             comp = component.figure.to_html(
-                include_plotlyjs=_include_plotlyjs, full_html=False)
-            _include_plotlyjs = False
+                include_plotlyjs='cdn' if not has_included_plotlyjs else False, full_html=False)
+            has_included_plotlyjs = True
             return comp
 
         if isinstance(component, str | int | float):
-            return component
+            return str(component)
 
         if component is None:
             return ''
@@ -57,14 +64,16 @@ def layout_to_html(component: Component | list[Component], include_plotlyjs: boo
 
 
 def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
-    """Input a compile report to output a html file equivalent"""
+    """Input a compile report to output a html report file with visualizations and summaries of the build time, build size, and dependency graph. The HTML file is saved to the specified export filename (or default, index.html next to the specified compile report)."""
     app = Dash(__name__)
     size_graph = size.get_plotter(filename)
     time_graph = time.get_plotter(filename)
     dep_fig, dep_graph = dependency_from_report.get_fig(filename)
 
-    longest_times = calc_largest(time_graph.sorted_modules, time.time_fmt)
-    largest_sizes = calc_largest(size_graph.sorted_modules, size.sizeof_fmt)
+    longest_times = get_largest_submodule(
+        time_graph.sorted_modules, time.time_fmt)
+    largest_sizes = get_largest_submodule(
+        size_graph.sorted_modules, size.sizeof_fmt)
 
     app.layout = html.Div([
         html.H4('Command line'),
@@ -109,5 +118,5 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                   id='graph3', style={'height': '70vh'}),
     ])
     with open(export_filename, "w", encoding="utf-8") as f:
-        f.write(layout_to_html(app.layout, 'cdn'))
+        f.write(layout_to_html(app.layout))
     return export_filename

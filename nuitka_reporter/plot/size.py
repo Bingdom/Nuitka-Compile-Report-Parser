@@ -1,26 +1,35 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
-from nuitka_reporter._types import NumberLike
+from .._types import NumberLike
 
 
-def sizeof_fmt(num: NumberLike, suffix="B"):
-    for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
-        if abs(num) < 1024.0:
-            return f"{num:3.1f}{unit}{suffix}"
-        num /= 1024.0
-    return f"{num:.1f}Yi{suffix}"
+def sizeof_fmt(bytes_count: int | float):
+    """
+    Returns a human readable string representation of bytes.
+    Uses binary prefixes (base-1024) by default.
+    """
+    for unit in ("B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"):
+        if abs(bytes_count) < 1024.0:
+            return f"{bytes_count:3.1f}{unit}"
+        bytes_count /= 1024.0
+    return f"{bytes_count:.1f}YiB"
 
 
 def module_parser(file_path: str):
+    """
+    Parses the XML file at the given file path and returns a tuple containing:
+    - A dictionary mapping root modules to their submodules and sizes.
+    - The total size of all modules.
+    """
     tree = ET.parse(file_path)
     root = tree.getroot()
     # Dictionary to store optimization time per root module and its submodules
-    module_sizes: defaultdict[str, defaultdict[str, int]
-                              ] = defaultdict(lambda: defaultdict(int))
+    module_sizes = defaultdict[str, defaultdict[str, NumberLike]](
+        lambda: defaultdict(int))
     total_size = 0
 
-    # Iterate over modules and sum optimization times
+    # Iterate over modules and sum sizes
     for data_composer in root.findall("data_composer"):
         for module in data_composer.findall("module_data"):
             module_name = module.get("blob_name", "Unknown")
@@ -45,6 +54,9 @@ def module_parser(file_path: str):
 
 
 def get_plotter(filename: str):
+    """
+    Returns a Plotter instance that analyzes the bytecode build size by root module and its submodules. The values in the plot are formatted using the `sizeof_fmt` function.
+    """
     return Plotter(filename, module_parser, sizeof_fmt,
                    "Bytecode build size by Root Module with Submodules", "Bytecode Build Size (bytes)", "Root Module Name")
 

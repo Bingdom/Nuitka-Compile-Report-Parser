@@ -4,6 +4,10 @@ from .plotter import Plotter
 
 
 def time_fmt(time: float):
+    """
+    Formats time in a human readable format. If time is less than 1 second, it is formatted in milliseconds. If time is less than 60 seconds, it is formatted in seconds. Otherwise, it is formatted in minutes and seconds.
+    """
+
     if time < 1:
         return f"{int(time*1000)}ms"
     if time < 60:
@@ -12,8 +16,13 @@ def time_fmt(time: float):
 
 
 def module_parser(file_path: str):
+    """
+    Parses the XML file at the given file path and returns a tuple containing:
+    - A dictionary mapping root modules to their submodules and optimization times.
+    - The total optimization time of all modules.
+    """
     # Dictionary to store optimization time per root module and its submodules
-    module_times = defaultdict(lambda: defaultdict(float))
+    module_times = defaultdict[str, defaultdict[str, float]](lambda: defaultdict(float))
     total_time = 0.0
 
     tree = ET.parse(file_path)
@@ -22,7 +31,7 @@ def module_parser(file_path: str):
     # Iterate over modules and sum optimization times
     for module in root.findall("module"):
         module_name = module.get("name", "Unknown")
-        # Assume self if no
+        # Assume self if no parent
         modules = module_name.split(".")
         parent_module = modules[0]
         module_time = 0.0

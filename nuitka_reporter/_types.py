@@ -1,3 +1,3 @@
-from typing import TypeVar
+from typing import Union
 
-NumberLike = TypeVar("NumberLike", int, float)
+NumberLike = Union[int, float]

@@ -1,17 +1,10 @@
 import xml.etree.ElementTree as ET
-from collections import defaultdict
-from ._types import NumberLike
 
 
-def sizeof_fmt(num: NumberLike, suffix="B"):
-    for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
-        if abs(num) < 1024.0:
-            return f"{num:3.1f}{unit}{suffix}"
-        num /= 1024.0
-    return f"{num:.1f}Yi{suffix}"
-
-
-def get_plugins(file_path: str):
+def get_plugin_options(file_path: str):
+    """
+    Returns a list of tuples containing plugin names and their user-enabled status.
+    """
     tree = ET.parse(file_path)
     root = tree.getroot()
 
@@ -20,20 +13,26 @@ def get_plugins(file_path: str):
     # Iterate over modules and sum optimization times
     for plugins in root.findall("plugins"):
         for plugin in plugins.findall("plugin"):
-            to_return.append((plugin.get("name"), plugin.get("user_enabled")))
+            to_return.append((
+                plugin.get("name", "unknown"),
+                plugin.get("user_enabled", "unknown")
+            ))
 
     return to_return
 
 
 def get_command_line(file_path: str):
+    """
+    Returns a list of command line options used on Nuitka.
+    """
     tree = ET.parse(file_path)
     root = tree.getroot()
 
-    to_return: list[tuple[str, str]] = []
+    to_return: list[str] = []
 
     # Iterate over modules and sum optimization times
     for plugins in root.findall("command_line"):
         for plugin in plugins.findall("option"):
-            to_return.append(plugin.get("value"))
+            to_return.append(plugin.get("value", "unknown"))
 
     return to_return
