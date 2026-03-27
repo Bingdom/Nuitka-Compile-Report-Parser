@@ -28,8 +28,8 @@ dependencies = [
 ]
 
 [project.urls]
-"Homepage" = "https://github.com/CryoDryOfficial/Pfeiffer-Vacuum-Protocol"
-"Bug Tracker" = "https://github.com/CryoDryOfficial/Pfeiffer-Vacuum-Protocol/issues"
+"Homepage" = "https://github.com/Bingdom/Nuitka-Compile-Report-Parser"
+"Bug Tracker" = "https://github.com/Bingdom/Nuitka-Compile-Report-Parser/issues"
 
 [project.scripts]
 nuitka-reporter = "nuitka_reporter.__main__:main"
