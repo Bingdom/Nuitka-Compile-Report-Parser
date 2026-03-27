@@ -4,31 +4,11 @@ import plotly.graph_objects as go
 
 
 def parse_name(name: str):
-    # return name
-    module_names = name.split('.')
-    if len(module_names) <= 1:
-        return name
-
-    # if len(module_names) > 3:
-    #     return '.'.join(module_names[:3])
-
-    if name in ('log.syslog', 'log.recipe'):
-        return name
-
-    if name.startswith('sql.'):
-        return 'sql'
-
-    if name.startswith('core.system.'):
-        return 'core.system'
-
-    if name.startswith('interface.models.'):
-        return 'interface.models'
-
-    return '.'.join(module_names[:-1])
+    return name
 
 
 def allowed_module(module: ET.Element):
-    return (module.get("kind") == "CompiledPythonModule" and module.get("source_path", '').startswith("${cwd}/backend/main") and parse_name(module.get("name")) != "log")
+    return (module.get("kind") == "CompiledPythonModule" and module.get("source_path", '').startswith("${cwd}") and not module.get("name", "").endswith("-preLoad"))
 
 
 def get_fig(filename: str):
