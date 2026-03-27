@@ -11,7 +11,7 @@ def sizeof_fmt(bytes_count: int | float):
     """
     for unit in ("B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"):
         if abs(bytes_count) < 1024.0:
-            return f"{bytes_count:3.1f}{unit}"
+            return f"{bytes_count:3.1f} {unit}"
         bytes_count /= 1024.0
     return f"{bytes_count:.1f}YiB"
 
