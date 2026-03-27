@@ -8,24 +8,39 @@ from ._types import NumberLike
 from .plot import size, time
 from .experiments import dependency_from_report
 from .helpers import get_command_line, get_plugin_options
+from typing import NamedTuple
 
 
-def get_largest_submodule(sorted_modules: list[dict[dict[str, NumberLike], NumberLike]], formatter: Callable[[NumberLike], str]):
+class LargestSubmodule(NamedTuple):
     """
-    From within a module, find the largest submodule and format its value using the provided formatter. Returns a dict of submodule name to formatted value.
+    Includes the root module, the largest submodule, and the value of the largest submodule (e.g. build time or size).
     """
-    largest = defaultdict[str, str](str)
+    module: str
+    submodule: str
+    value: str
+
+
+def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, NumberLike]]], formatter: Callable[[NumberLike], str]):
+    """
+    From within a module, find the largest submodule and format its value using the provided formatter. Returns a list of LargestSubmodule named tuples.
+    """
+    largest_submodules: list[LargestSubmodule] = []
     for root_module, submodules in sorted_modules:
         biggest_module = ""
-        biggest_time = 0
-        for submodule, time in submodules.items():
-            if time > biggest_time:
-                biggest_time = time
+        biggest_value = 0
+        for submodule, value in submodules.items():
+            if value > biggest_value:
+                biggest_value = value
                 biggest_module = submodule
 
-        largest[biggest_module] = formatter(biggest_time)
+        # Try to get the submodule name without the root module for easier reading
+        biggest_module = f".<b>{biggest_module.split(
+            ".")[-1]}</b>" if biggest_module.startswith(root_module + ".") else ' (root)'
 
-    return largest
+        largest_submodules.append(LargestSubmodule(
+            root_module, biggest_module, formatter(biggest_value)))
+
+    return largest_submodules
 
 
 def component_to_html(component: Component | list[Component]):
@@ -99,17 +114,17 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         html.P(f"Total compile time: {time.time_fmt(time_graph.total)}"),
         html.P(
             f"Total root modules: {len(time_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in time_graph.module_parsed.values())})"),
-        html.H4("Largest submodule build time"),
+        html.H4("Largest submodule build times summary"),
         html.Ul([
-            html.Li(f"{module}: {time}") for module, time in longest_times.items()]),
+            html.Li(f"{module}{submodule}: {time}") for module, submodule, time in longest_times]),
         dcc.Graph(figure=time_graph.fig, id='graph', style={'height': '70vh'}),
-        html.H4('Build size Summary'),
+        html.H4('Largest submodule sizes summary'),
         html.P(
             f"Total bytecode size: {size.sizeof_fmt(size_graph.total)}"),
         html.P(
             f"Total root modules: {len(size_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in size_graph.module_parsed.values())})"),
         html.Ul([
-            html.Li(f"{module}: {s}") for module, s in largest_sizes.items()]),
+            html.Li(f"{module}{submodule}: {s}") for module, submodule, s in largest_sizes]),
         dcc.Graph(figure=size_graph.fig, id='graph2',
                   style={'height': '70vh'}),
         html.H4('Dependency Summary'),
