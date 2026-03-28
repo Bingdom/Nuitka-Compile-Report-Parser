@@ -308,7 +308,7 @@ def _accordion_item(title: str, body_html: str, expanded: bool = False) -> str:
 
 
 def get_included_table(filename: str, element_name: str):
-    return dbc.Table([
+    return html.Div(dbc.Table([
         html.Thead(html.Tr([
             html.Th('Name'),
             html.Th('Src Path'),
@@ -324,13 +324,11 @@ def get_included_table(filename: str, element_name: str):
                 html.Td(html.Code(dest)),
                 html.Td(pkg or html.Span(
                     '—', className='text-muted')),
-                html.Td(
-                    get_colour_badge(ignored, ignored == 'yes'),
-                ),
-                html.Td(reason),
+                html.Td(get_colour_badge(ignored, ignored == 'yes')),
+                html.Td(reason, className='text-nowrap'),
             ]) for name, src, dest, pkg, ignored, reason in get_included(filename, element_name)
         ]) if get_included(filename, element_name) else html.Tbody(html.Tr(html.Td('None', colSpan=6, className='text-muted text-center'))),
-    ], striped=True, hover=True, bordered=True)
+    ], striped=True, hover=True, bordered=True), className='table-responsive')
 
 
 def get_colour_badge(text: str, truth: bool):
