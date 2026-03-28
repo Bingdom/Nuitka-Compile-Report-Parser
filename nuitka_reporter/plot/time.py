@@ -43,6 +43,9 @@ def module_parser(file_path: str):
         for opt_time in module.findall("optimization-time"):
             module_time += float(opt_time.get("time", 0.0))
 
+        for code_gen_time in module.findall("code-generation-time"):
+            module_time += float(code_gen_time.get("time", 0.0))
+
         module_times[parent_module][module_name] += module_time
         total_time += module_time
 
@@ -51,6 +54,6 @@ def module_parser(file_path: str):
 
 def get_plotter(filename: str):
     return Plotter(filename, module_parser, time_fmt,
-                   "Build Times by Root Module with Submodules",
-                   "Build Time (seconds)",
+                   "Transpilation Times by Root Module with Submodules",
+                   "Transpilation Time (seconds)",
                    "Root Module Name")
