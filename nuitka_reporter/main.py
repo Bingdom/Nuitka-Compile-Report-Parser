@@ -158,7 +158,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         SWITCH_GRAPH_JS,
         html.H4('Largest submodule sizes summary'),
         html.P(
-            f"Total bytecode size: {size.sizeof_fmt(size_graph.total)}"),
+            f"Total {size.get_size_type(filename)} size: {size.sizeof_fmt(size_graph.total)}"),
         html.P(
             f"Total root modules: {len(size_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in size_graph.module_parsed.values())})"),
         html.Ul([

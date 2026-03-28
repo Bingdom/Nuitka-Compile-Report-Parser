@@ -3,3 +3,4 @@ dash==4.1.0
 plotly==6.6.0
 networkx==3.6.1
 numpy==2.4.3
+semantic_version==2.10.0

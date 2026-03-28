@@ -2,7 +2,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
 from .._types import NumberLike
-from ..helpers import get_parsed_file
+from ..helpers import has_nuitka_version_upgraded_report, get_parsed_file, get_nuitka_version
 
 
 def sizeof_fmt(bytes_count: int | float):
@@ -17,15 +17,11 @@ def sizeof_fmt(bytes_count: int | float):
     return f"{bytes_count:.1f}YiB"
 
 
-def module_parser(file_path: str):
+def module_blob_size(root: ET.Element):
     """
-    Parses the XML file at the given file path and returns a tuple containing:
-    - A dictionary mapping root modules to their submodules and sizes.
-      Each submodule key is the full module path (e.g. "sqlalchemy.orm.session").
-    - The total size of all modules.
+    Returns the size of the blob for a given module element. (Nuitka <v4.1)
+    If the blob size is not available, it falls back to 0.
     """
-    root = get_parsed_file(file_path)
-    # Dictionary to store optimization time per root module and its submodules
     module_sizes = defaultdict[str, defaultdict[str, NumberLike]](
         lambda: defaultdict(int))
     total_size = 0
@@ -53,12 +49,70 @@ def module_parser(file_path: str):
     return module_sizes, total_size
 
 
+def module_object_file_size(root: ET.Element):
+    """
+    Returns the size of the object file for a given module element. (Nuitka >=v4.1)
+    If the object file size is not available, it falls back to 0.
+    """
+    module_sizes = defaultdict[str, defaultdict[str, NumberLike]](
+        lambda: defaultdict(int))
+    total_size = 0
+
+    # Iterate over modules and sum sizes
+    for module in root.findall("module"):
+        for c_comp_res in module.findall("c-compilation-resources"):
+            for object_size in c_comp_res.findall("object-file"):
+                module_name = module.get("name", "Unknown")
+                if module_name.split(".")[0] == "":
+                    module_name = module.get("filename", "Unknown")
+
+                modules = module_name.split(".")
+
+                # Assume self if no parent
+                parent_module = modules[0]
+                module_size = int(object_size.get("size", 0))
+
+                module_sizes[parent_module][module_name] += module_size
+                total_size += module_size
+
+    for data_file in root.findall("data_file"):
+        module_sizes["Included files"][data_file.get("name", "Unknown")] = int(
+            data_file.get("size", 0))
+
+    return module_sizes, total_size
+
+
+def get_size_type(file_path: str):
+    """
+    Returns the type of size information available in the report. It checks for the presence of object file size information (Nuitka >=v4.1) and returns "object file" if available. Otherwise, it returns "constants" (Nuitka <v4.1).
+    """
+    if has_nuitka_version_upgraded_report(get_nuitka_version(file_path)):
+        return "object file"
+
+    return "constants"
+
+
+def module_parser(file_path: str):
+    """
+    Parses the XML file at the given file path and returns a tuple containing:
+    - A dictionary mapping root modules to their submodules and sizes.
+      Each submodule key is the full module path (e.g. "sqlalchemy.orm.session").
+    - The total size of all modules.
+    """
+    root = get_parsed_file(file_path)
+
+    if has_nuitka_version_upgraded_report(get_nuitka_version(file_path)):
+        return module_object_file_size(root)
+
+    return module_blob_size(root)
+
+
 def get_plotter(filename: str):
     """
     Returns a Plotter instance that analyzes the bytecode build size by root module and its submodules. The values in the plot are formatted using the `sizeof_fmt` function.
     """
     return Plotter(filename, module_parser, sizeof_fmt,
-                   "Bytecode build size by Root Module with Submodules", "Bytecode Build Size (bytes)", "Root Module Name")
+                   f"{get_size_type(filename).capitalize()} build size by Root Module with Submodules", f"{get_size_type(filename).capitalize()} Build Size (bytes)", "Root Module Name")
 
 # # Sort root modules by total time taken
 # sorted_modules = sorted(module_sizes.items(),
