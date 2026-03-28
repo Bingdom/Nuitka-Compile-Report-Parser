@@ -73,6 +73,15 @@ def build_hierarchy_data(
 ) -> HierarchyData:
     data = HierarchyData()
 
+    # Insert a synthetic root to group all top-level modules for proper treemap/sunburst display
+    data.ids.append('root')
+    data.labels.append('All Modules')
+    data.parents.append('')
+    data.values.append(sum(sum(submodules.values())
+                       for _, submodules in sorted_modules))
+    data.hover_text.append('')
+    data.formatted_values.append('')
+
     for root_module, submodules in sorted_modules:
         root_total = sum(submodules.values())
 
@@ -83,7 +92,7 @@ def build_hierarchy_data(
 
         data.ids.append(root_module)
         data.labels.append(root_module)
-        data.parents.append("")
+        data.parents.append("root")
         data.values.append(root_total)
         data.hover_text.append(root_hover)
         data.formatted_values.append(value_formatter(root_total))
@@ -107,6 +116,36 @@ def build_hierarchy_data(
                     total += val
             path_totals[path] = total
 
+        # For any node that has both its own value AND children, add a "(self)"
+        # leaf so the treemap/sunburst accounts for the node's own value.
+        has_children: set[str] = set()
+        for path in all_paths:
+            parent = ".".join(path.split(".")[:-1])
+            if parent:
+                has_children.add(parent)
+
+        for path in sorted(all_paths, key=lambda x: (x.count("."), x)):
+            own_value = path_values.get(path, 0)
+            if own_value and path in has_children:
+                if path == root_module:
+                    self_id = f"{root_module}/(self)"
+                    parent_id = root_module
+                else:
+                    self_id = f"{root_module}/{path}/(self)"
+                    parent_id = f"{root_module}/{path}"
+
+                self_hover = _breakdown_hover(
+                    path, own_value, value_formatter,
+                    leaf_breakdowns, breakdown_labels, path + ".\x00",
+                    module_metadata)
+
+                data.ids.append(self_id)
+                data.labels.append("(self)")
+                data.parents.append(parent_id)
+                data.values.append(own_value)
+                data.hover_text.append(self_hover)
+                data.formatted_values.append(value_formatter(own_value))
+
         # Add child nodes sorted by depth then name (skip root, already added)
         for path in sorted(all_paths - {root_module}, key=lambda x: (x.count("."), x)):
             parts = path.split(".")
@@ -114,6 +153,8 @@ def build_hierarchy_data(
             parent_id = f"{root_module}/{parent_path}" if parent_path != root_module else root_module
             node_id = f"{root_module}/{path}"
 
+            # Use the node's total (own + descendants) if it has children,
+            # otherwise just its own value
             total = path_totals[path]
 
             hover = _breakdown_hover(
@@ -193,6 +234,8 @@ class Plotter():
             branchvalues="total",
             textinfo="label+text",
         ))
+
+        fig.update_traces(root_color="lightgrey")
 
         fig.update_layout(
             title=self.title,

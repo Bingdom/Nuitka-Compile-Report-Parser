@@ -535,7 +535,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     # --- Assemble accordion ---
     accordion_items = ''.join([
         _accordion_item('Command Line', cmd_html, expanded=True),
-        _accordion_item('Plugin Options & Distributions', plugins_distros_html),
+        _accordion_item('Plugin Options & Distributions',
+                        plugins_distros_html),
         _accordion_item('Included Extensions & DLLs', ext_dll_html),
         _accordion_item('Data Files', data_files_html),
         _accordion_item('Transpilation Time', time_html, expanded=True),
