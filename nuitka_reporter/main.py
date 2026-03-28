@@ -332,6 +332,13 @@ def get_included_table(filename: str, element_name: str):
     ], striped=True, hover=True, bordered=True)
 
 
+def get_colour_badge(text: str, truth: bool):
+    return dbc.Badge(
+        text,
+        color='success' if truth else 'secondary'
+    )
+
+
 def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
     """Input a compile report to output a html report file with visualizations and summaries of the build time, build size, and dependency graph. The HTML file is saved to the specified export filename (or default, index.html next to the specified compile report)."""
     global _accordion_counter
@@ -373,10 +380,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                                 html.Tr([
                                     html.Td(name),
                                     html.Td(
-                                        dbc.Badge(
-                                            'Yes' if enabled == 'True' else enabled,
-                                            color='success' if enabled == 'True' else 'secondary',
-                                        )
+                                        get_colour_badge(
+                                            enabled, enabled == 'yes')
                                     ),
                                 ]) for name, enabled in get_plugin_options(filename)
                             ]),
