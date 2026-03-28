@@ -13,7 +13,7 @@ from ._types import NumberLike
 from .plot import size, time
 from .plot.plotter import Plotter
 from .experiments import dependency_from_report
-from .helpers import get_command_line, get_plugin_options
+from .helpers import get_command_line, get_data_files, get_distributions, get_included, get_plugin_options
 from typing import NamedTuple
 
 BOOTSTRAP_CSS = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">'
@@ -91,6 +91,10 @@ def _build_attrs(props: dict, extra_classes: str = '') -> str:
     href = props.get('href')
     if href:
         attrs['href'] = href
+
+    colSpan = props.get('colSpan')
+    if colSpan:
+        attrs['colspan'] = str(colSpan)
 
     if not attrs:
         return ''
@@ -249,6 +253,29 @@ def component_to_html(component: Component | list[Component]) -> str:
     return html_child(component)
 
 
+def get_included_table(filename: str, element_name: str):
+    return dbc.Table([
+        html.Thead(html.Tr([
+            html.Th('Name'),
+            html.Th('Dest Path'),
+            html.Th('Package'),
+            html.Th('Ignored'),
+            html.Th('Reason'),
+        ])),
+        html.Tbody([
+            html.Tr([
+                html.Td(name),
+                html.Td(html.Code(dest)),
+                html.Td(pkg or html.Span(
+                    '—', className='text-muted')),
+                html.Td(html.Code(ignored)) if ignored else html.Td(html.Span(
+                    '—', className='text-muted')),
+                html.Td(reason),
+            ]) for name, dest, pkg, ignored, reason in get_included(filename, element_name)
+        ]) if get_included(filename, element_name) else html.Tbody(html.Tr(html.Td('None', colSpan=5, className='text-muted text-center'))),
+    ], striped=True, hover=True, bordered=True)
+
+
 def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
     """Input a compile report to output a html report file with visualizations and summaries of the build time, build size, and dependency graph. The HTML file is saved to the specified export filename (or default, index.html next to the specified compile report)."""
     size_graph = size.get_plotter(filename)
@@ -274,26 +301,102 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
             ),
         ], className='mb-4'),
 
-        # Plugin options
+        # Plugin options & Distributions
+        dbc.Row([
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardHeader(
+                        html.H5('Plugin options', className='mb-0')),
+                    dbc.CardBody(
+                        dbc.Table([
+                            html.Thead(html.Tr([
+                                html.Th('Name'),
+                                html.Th('User Enabled'),
+                            ])),
+                            html.Tbody([
+                                html.Tr([
+                                    html.Td(name),
+                                    html.Td(
+                                        dbc.Badge(
+                                            'Yes' if enabled == 'True' else enabled,
+                                            color='success' if enabled == 'True' else 'secondary',
+                                        )
+                                    ),
+                                ]) for name, enabled in get_plugin_options(filename)
+                            ]),
+                        ], striped=True, hover=True, bordered=True)
+                    ),
+                ], className='h-100'),
+                md=6,
+            ),
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardHeader(html.H5('Distributions', className='mb-0')),
+                    dbc.CardBody(
+                        dbc.Table([
+                            html.Thead(html.Tr([
+                                html.Th('Name'),
+                                html.Th('Version'),
+                                html.Th('Installer'),
+                            ])),
+                            html.Tbody([
+                                html.Tr([
+                                    html.Td(name),
+                                    html.Td(version),
+                                    html.Td(installer),
+                                ]) for name, version, installer in get_distributions(filename)
+                            ]),
+                        ], striped=True, hover=True, bordered=True)
+                    ),
+                ], className='h-100'),
+                md=6,
+            ),
+        ], className='mb-4'),
+
+        # Included Extensions, Included DLLs, Excluded DLLs
         dbc.Card([
-            dbc.CardHeader(html.H5('Plugin options', className='mb-0')),
+            dbc.CardHeader(
+                html.H5('Included Extensions & DLLs', className='mb-0')),
+            dbc.CardBody([
+                html.H6('Included Extensions', className='mt-0 mb-2'),
+                get_included_table(filename, "included_extension"),
+
+                html.H6('Included DLLs', className='mt-4 mb-2'),
+                get_included_table(filename, "included_dll"),
+
+                html.H6('Excluded DLLs', className='mt-4 mb-2'),
+                get_included_table(filename, "excluded_dll"),
+            ]),
+        ], className='mb-4'),
+
+        # Data Files
+        dbc.Card([
+            dbc.CardHeader(html.H5('Data Files', className='mb-0')),
             dbc.CardBody(
                 dbc.Table([
                     html.Thead(html.Tr([
                         html.Th('Name'),
-                        html.Th('User Enabled'),
+                        html.Th('Source'),
+                        html.Th('Size'),
+                        html.Th('Reason'),
+                        html.Th('Tags'),
                     ])),
                     html.Tbody([
                         html.Tr([
                             html.Td(name),
-                            html.Td(
-                                dbc.Badge(
-                                    'Yes' if enabled == 'True' else enabled,
-                                    color='success' if enabled == 'True' else 'secondary',
-                                )
-                            ),
-                        ]) for name, enabled in get_plugin_options(filename)
-                    ]),
+                            html.Td(html.Code(source)),
+                            html.Td(size.sizeof_fmt(sz)),
+                            html.Td(reason),
+                            html.Td([
+                                dbc.Badge(tag.strip(), color='info',
+                                          className='me-1')
+                                for tag in tags.split(',') if tag.strip()
+                            ] if tags else html.Span('\u2014', className='text-muted')),
+                        ]) for name, source, sz, reason, tags in get_data_files(filename)
+                    ]) if get_data_files(filename) else html.Tbody(
+                        html.Tr(html.Td('None', colSpan=5,
+                                className='text-muted text-center'))
+                    ),
                 ], striped=True, hover=True, bordered=True)
             ),
         ], className='mb-4'),

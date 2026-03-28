@@ -82,6 +82,61 @@ def get_command_line(file_path: str):
     return to_return
 
 
+def get_distributions(file_path: str) -> list[tuple[str, str, str]]:
+    """
+    Returns a list of tuples (name, version, installer) for each distribution
+    listed in the compilation report.
+    """
+    root = get_parsed_file(file_path)
+
+    to_return: list[tuple[str, str, str]] = []
+
+    for distributions in root.findall("distributions"):
+        for dist in distributions.findall("distribution"):
+            to_return.append((
+                dist.get("name", "unknown"),
+                dist.get("version", "unknown"),
+                dist.get("installer", "unknown"),
+            ))
+
+    return to_return
+
+
+def get_included(file_path: str, element_name: str) -> list[tuple[str, str, str, str, str]]:
+    """
+    Returns a list of tuples (name, dest_path, package, ignored, reason) for each
+    included element in the compilation report.
+    """
+    root = get_parsed_file(file_path)
+    return [
+        (
+            ext.get("name", "unknown"),
+            ext.get("dest_path", "unknown"),
+            ext.get("package", ""),
+            ext.get("ignored", "unknown"),
+            ext.get("reason", "unknown"),
+        )
+        for ext in root.findall(element_name)
+    ]
+
+def get_data_files(file_path: str) -> list[tuple[str, str, int, str, str]]:
+    """
+    Returns a list of tuples (name, source, size, reason, tags) for each
+    data_file in the compilation report.
+    """
+    root = get_parsed_file(file_path)
+    return [
+        (
+            df.get("name", "unknown"),
+            df.get("source", "unknown"),
+            int(df.get("size", 0)),
+            df.get("reason", "unknown"),
+            df.get("tags", ""),
+        )
+        for df in root.findall("data_file")
+    ]
+
+
 def get_module_metadata(file_path: str) -> dict[str, dict[str, str]]:
     """
     Returns a dict mapping module name to its metadata (kind, usage, reason, source_path)
