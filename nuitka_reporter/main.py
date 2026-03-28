@@ -13,7 +13,7 @@ from ._types import NumberLike
 from .plot import size, time
 from .plot.plotter import Plotter
 from .experiments import dependency_from_report
-from .helpers import get_command_line, get_data_files, get_distributions, get_included, get_plugin_options, get_module_stats
+from .helpers import get_command_line, get_data_files, get_distributions, get_included, get_nuitka_version, get_plugin_options, get_module_stats, has_nuitka_version_upgraded_report
 from typing import NamedTuple
 
 BOOTSTRAP_CSS = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">'
@@ -352,6 +352,9 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     largest_sizes = get_largest_submodule(
         size_graph.sorted_modules)
 
+    nuitka_updated = has_nuitka_version_upgraded_report(
+        get_nuitka_version(filename))
+
     # --- Build each section's inner HTML via Dash components ---
 
     # Command line
@@ -472,7 +475,9 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                     dbc.CardBody([
                         html.H6('C generation time ', className='text-muted'),
                         html.H4(str(
-                            time.time_fmt(sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A'),
+                            time.time_fmt(sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A',
+                            className='text-warning' if not nuitka_updated else None
+                        ),
                     ])
                 ], className='text-center stat-card'),
                 md=4,
@@ -487,6 +492,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                 md=4,
             ),
         ], className='mb-3'),
+        dbc.Alert(
+            'Upgrade Nuitka to v4.1 or higher to see c code generation times', color='warning') if not nuitka_updated else None,
         html.H6('Largest submodule transpilation times',
                 className='mt-3'),
         dbc.ListGroup([
