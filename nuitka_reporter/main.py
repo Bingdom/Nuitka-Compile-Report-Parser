@@ -324,8 +324,9 @@ def get_included_table(filename: str, element_name: str):
                 html.Td(html.Code(dest)),
                 html.Td(pkg or html.Span(
                     '—', className='text-muted')),
-                html.Td(html.Code(ignored)) if ignored else html.Td(html.Span(
-                    '—', className='text-muted')),
+                html.Td(
+                    get_colour_badge(ignored, ignored == 'yes'),
+                ),
                 html.Td(reason),
             ]) for name, src, dest, pkg, ignored, reason in get_included(filename, element_name)
         ]) if get_included(filename, element_name) else html.Tbody(html.Tr(html.Td('None', colSpan=6, className='text-muted text-center'))),
