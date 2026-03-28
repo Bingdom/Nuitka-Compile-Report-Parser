@@ -148,7 +148,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
             ])
         ]),
         html.H4('Transpilation time Summary'),
-        html.P(f"Total compile time: {time.time_fmt(time_graph.total)}"),
+        html.P(f"Total transpilation time: {time.time_fmt(time_graph.total)}"),
         html.P(
             f"Total root modules: {len(time_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in time_graph.module_parsed.values())})"),
         html.H4("Largest submodule transpilation times summary"),
