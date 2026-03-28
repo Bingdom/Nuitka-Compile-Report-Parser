@@ -1,9 +1,14 @@
 import os
+import re
 from collections import defaultdict
 from typing import Callable
+from html import escape as html_escape
+
 import minify_html_onepass
 from dash import dcc, html
 from dash.development.base_component import Component
+import dash_bootstrap_components as dbc
+
 from ._types import NumberLike
 from .plot import size, time
 from .plot.plotter import Plotter
@@ -11,21 +16,122 @@ from .experiments import dependency_from_report
 from .helpers import get_command_line, get_plugin_options
 from typing import NamedTuple
 
+BOOTSTRAP_CSS = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">'
+
+CUSTOM_CSS = """<style>
+.card { box-shadow: 0 .125rem .25rem rgba(0,0,0,.075); }
+.stat-card .card-body { padding: 1rem; }
+.stat-card h6 { font-size: .85rem; margin-bottom: .25rem; }
+.stat-card h4 { margin-bottom: 0; }
+</style>"""
 
 SWITCH_GRAPH_JS = """<script>
 function switchGraph(id, type) {
     ['bar', 'treemap', 'sunburst'].forEach(function(t) {
         document.getElementById(id + '_' + t).style.display = t === type ? '' : 'none';
-        document.getElementById(id + '_' + t + '_btn').style.fontWeight = t === type ? 'bold' : 'normal';
+        var btn = document.getElementById(id + '_' + t + '_btn');
+        if (t === type) { btn.classList.add('active'); } else { btn.classList.remove('active'); }
     });
     var plotDiv = document.getElementById(id + '_' + type).querySelector('.plotly-graph-div');
     if (plotDiv) Plotly.Plots.resize(plotDiv);
 }
 </script>"""
 
+# DBC component type -> (html_tag, default_bootstrap_class)
+_DBC_TAG_MAP = {
+    'Container': ('div', 'container'),
+    'Row':       ('div', 'row'),
+    'Col':       ('div', 'col'),
+    'Card':      ('div', 'card'),
+    'CardBody':  ('div', 'card-body'),
+    'CardHeader': ('div', 'card-header'),
+    'CardFooter': ('div', 'card-footer'),
+    'Table':     ('table', 'table'),
+    'Badge':     ('span', 'badge'),
+    'Alert':     ('div', 'alert'),
+    'ListGroup':     ('div', 'list-group'),
+    'ListGroupItem': ('div', 'list-group-item'),
+}
+
+_VOID_ELEMENTS = frozenset({
+    'br', 'hr', 'img', 'input', 'meta', 'link', 'area',
+    'base', 'col', 'embed', 'source', 'track', 'wbr',
+})
+
+
+def _camel_to_kebab(name: str) -> str:
+    return re.sub(r'(?<!^)(?=[A-Z])', '-', name).lower()
+
+
+def _style_to_str(style: dict | str | None) -> str:
+    if not style:
+        return ''
+    if isinstance(style, str):
+        return style
+    return '; '.join(f'{_camel_to_kebab(k)}: {v}' for k, v in style.items())
+
+
+def _build_attrs(props: dict, extra_classes: str = '') -> str:
+    attrs: dict[str, str] = {}
+
+    cls = props.get('className', '') or ''
+    if extra_classes:
+        cls = f"{extra_classes} {cls}".strip() if cls else extra_classes
+    if cls:
+        attrs['class'] = cls
+
+    style = props.get('style')
+    if style:
+        attrs['style'] = _style_to_str(style)
+
+    id_val = props.get('id')
+    if id_val and isinstance(id_val, str):
+        attrs['id'] = id_val
+
+    href = props.get('href')
+    if href:
+        attrs['href'] = href
+
+    if not attrs:
+        return ''
+    return ' ' + ' '.join(
+        f'{k}="{html_escape(str(v), quote=True)}"' for k, v in attrs.items()
+    )
+
+
+def _dbc_extra_classes(comp_type: str, props: dict) -> str:
+    classes: list[str] = []
+    tag_info = _DBC_TAG_MAP.get(comp_type)
+    if tag_info:
+        classes.append(tag_info[1])
+
+    if comp_type == 'Col':
+        for sz in ('xs', 'sm', 'md', 'lg', 'xl', 'xxl'):
+            val = props.get(sz)
+            if val is not None:
+                if val is True:
+                    classes.append(f'col-{sz}')
+                else:
+                    classes.append(f'col-{sz}-{val}')
+
+    if comp_type == 'Table':
+        for prop in ('striped', 'bordered', 'hover', 'dark'):
+            if props.get(prop):
+                classes.append(f'table-{prop}')
+
+    if comp_type == 'Badge':
+        color = props.get('color', 'primary')
+        classes.append(f'text-bg-{color}')
+
+    if comp_type == 'Alert':
+        color = props.get('color', 'primary')
+        classes.append(f'alert-{color}')
+
+    return ' '.join(classes)
+
 
 def switchable_graph_html(plotter: Plotter, graph_id: str, include_plotlyjs: bool = False) -> str:
-    """Generate raw HTML with toggle buttons to switch between bar chart, treemap, and sunburst."""
+    """Generate raw HTML with Bootstrap-styled toggle buttons to switch between bar chart, treemap, and sunburst."""
     bar_html = plotter.get_figure("bar").to_html(
         include_plotlyjs='cdn' if include_plotlyjs else False, full_html=False)
     treemap_html = plotter.get_figure("treemap").to_html(
@@ -34,13 +140,15 @@ def switchable_graph_html(plotter: Plotter, graph_id: str, include_plotlyjs: boo
         include_plotlyjs=False, full_html=False)
 
     return (
-        f'<div>'
-        f'<button onclick="switchGraph(\'{graph_id}\',\'bar\')" '
-        f'id="{graph_id}_bar_btn" style="font-weight:bold">Bar Chart</button> '
-        f'<button onclick="switchGraph(\'{graph_id}\',\'treemap\')" '
-        f'id="{graph_id}_treemap_btn">Treemap</button> '
-        f'<button onclick="switchGraph(\'{graph_id}\',\'sunburst\')" '
+        f'<div class="mb-3">'
+        f'<div class="btn-group mb-2" role="group">'
+        f'<button class="btn btn-outline-primary active" onclick="switchGraph(\'{graph_id}\',\'bar\')" '
+        f'id="{graph_id}_bar_btn">Bar Chart</button>'
+        f'<button class="btn btn-outline-primary" onclick="switchGraph(\'{graph_id}\',\'treemap\')" '
+        f'id="{graph_id}_treemap_btn">Treemap</button>'
+        f'<button class="btn btn-outline-primary" onclick="switchGraph(\'{graph_id}\',\'sunburst\')" '
         f'id="{graph_id}_sunburst_btn">Sunburst</button>'
+        f'</div>'
         f'<div id="{graph_id}_bar">{bar_html}</div>'
         f'<div id="{graph_id}_treemap" style="display:none">{treemap_html}</div>'
         f'<div id="{graph_id}_sunburst" style="display:none">{sunburst_html}</div>'
@@ -80,22 +188,17 @@ def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, Numbe
     return largest_submodules
 
 
-def component_to_html(component: Component | list[Component]):
+def component_to_html(component: Component | list[Component]) -> str:
     """
     Recursively converts Dash component(s) into an HTML string.
-
-    *Note: This function is not well tested and may not cover all edge cases of Dash components.*
+    Supports standard html.*, dcc.Graph, and dash_bootstrap_components.*.
+    Handles className, style, id, and href attributes.
     """
-    # Include the plotly.js library only for the first graph to avoid duplicate script tags
     has_included_plotlyjs = False
 
-    def html_child(component: Component | list[Component]):
-        """
-        Recursively converts a Dash component or a list of components into an HTML string.
-        Ensuring that the plotly.js library is included only once for all graphs.
-        """
+    def html_child(component: Component | list[Component]) -> str:
         nonlocal has_included_plotlyjs
-        if isinstance(component, list):
+        if isinstance(component, list | tuple):
             return ''.join(html_child(child) for child in component)
 
         if isinstance(component, dcc.Graph):
@@ -110,11 +213,40 @@ def component_to_html(component: Component | list[Component]):
         if component is None:
             return ''
 
-        element = component._type.lower()
-        return f"<{element}>{html_child(component.children)}</{element}>"
+        try:
+            plotly_json = component.to_plotly_json()
+        except Exception:
+            return str(component)
 
-    # return html_child(component)
-    return minify_html_onepass.minify(f"<body>{html_child(component)}</body>", minify_js=True, minify_css=True)
+        comp_type = plotly_json.get('type', 'div')
+        namespace = plotly_json.get('namespace', '')
+        props = plotly_json.get('props', {})
+        children = props.get('children', '')
+
+        # DBC components
+        if namespace == 'dash_bootstrap_components':
+            tag_info = _DBC_TAG_MAP.get(comp_type)
+            if tag_info:
+                tag = tag_info[0]
+                extra_classes = _dbc_extra_classes(comp_type, props)
+            else:
+                tag = 'div'
+                extra_classes = ''
+            attrs = _build_attrs(props, extra_classes)
+            if tag in _VOID_ELEMENTS:
+                return f'<{tag}{attrs}/>'
+            content = html_child(children) if children else ''
+            return f'<{tag}{attrs}>{content}</{tag}>'
+
+        # Standard html.* components
+        element = comp_type.lower()
+        attrs = _build_attrs(props)
+        if element in _VOID_ELEMENTS:
+            return f'<{element}{attrs}/>'
+        content = html_child(children) if children else ''
+        return f'<{element}{attrs}>{content}</{element}>'
+
+    return html_child(component)
 
 
 def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
@@ -128,47 +260,162 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     largest_sizes = get_largest_submodule(
         size_graph.sorted_modules, size.sizeof_fmt)
 
-    component = html.Div([
-        html.H4('Command line'),
-        html.Ul([html.Li(command)
-                for command in get_command_line(filename)]),
-        html.H4('Plugin options'),
-        html.Table([
-            html.Thead([
-                html.Tr([
-                    html.Th('Name'),
-                    html.Th('User Enabled')
+    component = dbc.Container([
+        html.H2('Nuitka Compilation Report', className='my-4'),
+
+        # Command line
+        dbc.Card([
+            dbc.CardHeader(html.H5('Command line', className='mb-0')),
+            dbc.CardBody(
+                dbc.ListGroup([
+                    dbc.ListGroupItem(html.Code(command))
+                    for command in get_command_line(filename)
                 ])
+            ),
+        ], className='mb-4'),
+
+        # Plugin options
+        dbc.Card([
+            dbc.CardHeader(html.H5('Plugin options', className='mb-0')),
+            dbc.CardBody(
+                dbc.Table([
+                    html.Thead(html.Tr([
+                        html.Th('Name'),
+                        html.Th('User Enabled'),
+                    ])),
+                    html.Tbody([
+                        html.Tr([
+                            html.Td(name),
+                            html.Td(
+                                dbc.Badge(
+                                    'Yes' if enabled == 'True' else enabled,
+                                    color='success' if enabled == 'True' else 'secondary',
+                                )
+                            ),
+                        ]) for name, enabled in get_plugin_options(filename)
+                    ]),
+                ], striped=True, hover=True, bordered=True)
+            ),
+        ], className='mb-4'),
+
+        # Transpilation Time
+        dbc.Card([
+            dbc.CardHeader(html.H5('Transpilation time', className='mb-0')),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col(
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H6('Total time', className='text-muted'),
+                                html.H4(time.time_fmt(time_graph.total)),
+                            ])
+                        ], className='text-center stat-card'),
+                        md=6,
+                    ),
+                    dbc.Col(
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H6('Root modules',
+                                        className='text-muted'),
+                                html.H4(str(len(time_graph.module_parsed))),
+                                html.Small(
+                                    f"({sum(len(s) for s in time_graph.module_parsed.values())} submodules)",
+                                    className='text-muted',
+                                ),
+                            ])
+                        ], className='text-center stat-card'),
+                        md=6,
+                    ),
+                ], className='mb-3'),
+                html.H6('Largest submodule transpilation times',
+                        className='mt-3'),
+                dbc.ListGroup([
+                    dbc.ListGroupItem([
+                        html.Span(f"{module}{submodule}"),
+                        dbc.Badge(t, color='info', className='float-end'),
+                    ])
+                    for module, submodule, t in longest_times
+                ], className='mb-3'),
+                switchable_graph_html(
+                    time_graph, 'time_graph', include_plotlyjs=True),
             ]),
-            html.Tbody([
-                html.Tr([
-                    html.Td(name),
-                    html.Td(enabled)
-                ]) for name, enabled in get_plugin_options(filename)
-            ])
-        ]),
-        html.H4('Transpilation time Summary'),
-        html.P(f"Total transpilation time: {time.time_fmt(time_graph.total)}"),
-        html.P(
-            f"Total root modules: {len(time_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in time_graph.module_parsed.values())})"),
-        html.H4("Largest submodule transpilation times summary"),
-        html.Ul([
-            html.Li(f"{module}{submodule}: {time}") for module, submodule, time in longest_times]),
-        switchable_graph_html(time_graph, 'time_graph', include_plotlyjs=True),
+        ], className='mb-4'),
+
         SWITCH_GRAPH_JS,
-        html.H4('Largest submodule sizes summary'),
-        html.P(
-            f"Total {size.get_size_type(filename)} size: {size.sizeof_fmt(size_graph.total)}"),
-        html.P(
-            f"Total root modules: {len(size_graph.module_parsed)} (incl. aggregated submodules: {sum(len(submodules) for submodules in size_graph.module_parsed.values())})"),
-        html.Ul([
-            html.Li(f"{module}{submodule}: {s}") for module, submodule, s in largest_sizes]),
-        switchable_graph_html(size_graph, 'size_graph'),
-        html.H4('Dependency Summary'),
-        html.P(
-            f"Node count: {len(dep_graph.nodes())}"),
-        dep_fig.to_html(include_plotlyjs=False, full_html=False),
-    ])
+
+        # Build Size
+        dbc.Card([
+            dbc.CardHeader(html.H5('Build size', className='mb-0')),
+            dbc.CardBody([
+                dbc.Row([
+                    dbc.Col(
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H6(
+                                    f'Total {size.get_size_type(filename)} size',
+                                    className='text-muted',
+                                ),
+                                html.H4(size.sizeof_fmt(size_graph.total)),
+                            ])
+                        ], className='text-center stat-card'),
+                        md=6,
+                    ),
+                    dbc.Col(
+                        dbc.Card([
+                            dbc.CardBody([
+                                html.H6('Root Modules',
+                                        className='text-muted'),
+                                html.H4(str(len(size_graph.module_parsed))),
+                                html.Small(
+                                    f"({sum(len(s) for s in size_graph.module_parsed.values())} submodules)",
+                                    className='text-muted',
+                                ),
+                            ])
+                        ], className='text-center stat-card'),
+                        md=6,
+                    ),
+                ], className='mb-3'),
+                html.H6('Largest submodule sizes', className='mt-3'),
+                dbc.ListGroup([
+                    dbc.ListGroupItem([
+                        html.Span(f"{module}{submodule}"),
+                        dbc.Badge(s, color='info', className='float-end'),
+                    ])
+                    for module, submodule, s in largest_sizes
+                ], className='mb-3'),
+                switchable_graph_html(size_graph, 'size_graph'),
+            ]),
+        ], className='mb-4'),
+
+        # Dependency Graph
+        dbc.Card([
+            dbc.CardHeader(html.H5('Dependency Graph', className='mb-0')),
+            dbc.CardBody([
+                html.P([
+                    'Node count: ',
+                    dbc.Badge(str(len(dep_graph.nodes())), color='secondary'),
+                ]),
+                dep_fig.to_html(include_plotlyjs=False, full_html=False),
+            ]),
+        ], className='mb-4'),
+    ], className='py-4')
+
+    body_html = component_to_html(component)
+    full_html = (
+        '<!DOCTYPE html>'
+        '<html lang="en">'
+        '<head>'
+        '<meta charset="utf-8">'
+        '<meta name="viewport" content="width=device-width, initial-scale=1">'
+        '<title>Nuitka Compilation Report</title>'
+        f'{BOOTSTRAP_CSS}'
+        f'{CUSTOM_CSS}'
+        '</head>'
+        f'<body class="bg-light">{body_html}</body>'
+        '</html>'
+    )
+
     with open(export_filename, "w", encoding="utf-8") as f:
-        f.write(component_to_html(component))
+        f.write(minify_html_onepass.minify(
+            full_html, minify_js=True, minify_css=True))
     return export_filename
