@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 import networkx as nx
 import plotly.graph_objects as go
-from ..helpers import get_parsed_file
+from ..helpers import get_parsed_file, get_module_metadata
 
 
 def parse_name(name: str):
@@ -77,16 +77,31 @@ def get_fig(filename: str):
     node_x = []
     node_y = []
     node_text = []
+    node_hover = []
+    metadata = get_module_metadata(filename)
     for node in G.nodes():
         x, y = pos[node]
         node_x.append(x)
         node_y.append(y)
         node_text.append(node)
+        hover = node
+        meta = metadata.get(node, {})
+        if "kind" in meta:
+            hover += f"<br>Kind: {meta['kind']}"
+        if "usage" in meta:
+            hover += f"<br>Usage: {meta['usage']}"
+        if "reason" in meta:
+            hover += f"<br>Reason: {meta['reason']}"
+        if "source_path" in meta:
+            hover += f"<br>Source: {meta['source_path']}"
+        node_hover.append(hover)
 
     node_adjacencies = []
     for node, adjacencies in enumerate(G.adjacency()):
         node_adjacencies.append(len(adjacencies[1]))
         node_text[node] += ': '+str(len(adjacencies[1]))
+        node_hover[
+            node] += f"<br><br>Used by {len(adjacencies[1])} other module(s)"
 
     node_trace = go.Scatter(
         x=node_x, y=node_y,
@@ -101,6 +116,7 @@ def get_fig(filename: str):
             line=dict(width=2, color='black')
         ),
         hoverinfo='text',
+        hovertext=node_hover,
     )
 
     # Create figure

@@ -80,3 +80,24 @@ def get_command_line(file_path: str):
             to_return.append(plugin.get("value", "unknown"))
 
     return to_return
+
+
+def get_module_metadata(file_path: str) -> dict[str, dict[str, str]]:
+    """
+    Returns a dict mapping module name to its metadata (kind, usage, reason, source_path)
+    extracted from the compilation report XML.
+    """
+    root = get_parsed_file(file_path)
+    metadata: dict[str, dict[str, str]] = {}
+
+    for module in root.findall("module"):
+        name = module.get("name", "Unknown")
+        meta: dict[str, str] = {}
+        for attr in ("kind", "usage", "reason", "source_path"):
+            val = module.get(attr)
+            if val:
+                meta[attr] = val
+        if meta:
+            metadata[name] = meta
+
+    return metadata

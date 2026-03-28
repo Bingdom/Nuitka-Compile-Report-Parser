@@ -2,6 +2,7 @@ from typing import Callable, Literal
 from dataclasses import dataclass, field
 import plotly.graph_objects as go
 from nuitka_reporter._types import NumberLike
+from nuitka_reporter.helpers import get_module_metadata
 from collections import defaultdict
 
 GraphType = Literal["treemap", "bar", "sunburst"]
@@ -20,6 +21,23 @@ class HierarchyData:
     formatted_values: list[str] = field(default_factory=list)
 
 
+def _metadata_hover_lines(name: str, module_metadata: dict[str, dict[str, str]] | None) -> str:
+    """Build hover lines for module metadata (kind, usage, reason, source_path)."""
+    if not module_metadata or name not in module_metadata:
+        return ""
+    meta = module_metadata[name]
+    lines = ""
+    if "kind" in meta:
+        lines += f"<br>Kind: {meta['kind']}"
+    if "usage" in meta:
+        lines += f"<br>Usage: {meta['usage']}"
+    if "reason" in meta:
+        lines += f"<br>Reason: {meta['reason']}"
+    if "source_path" in meta:
+        lines += f"<br>Source: {meta['source_path']}"
+    return lines
+
+
 def _breakdown_hover(
     name: str,
     total: NumberLike,
@@ -27,10 +45,12 @@ def _breakdown_hover(
     leaf_breakdowns: dict[str, tuple[NumberLike, ...]] | None,
     breakdown_labels: tuple[str, ...],
     match_prefix: str,
+    module_metadata: dict[str, dict[str, str]] | None = None,
 ) -> str:
     """Build hover text, listing each breakdown component then Total at the bottom."""
+    meta_lines = _metadata_hover_lines(name, module_metadata)
     if leaf_breakdowns is None:
-        return f"{name}<br>{value_formatter(total)}"
+        return f"{name}<br>{value_formatter(total)}{meta_lines}"
     n = len(breakdown_labels)
     component_totals = [0.0] * n
     for k, v in leaf_breakdowns.items():
@@ -41,7 +61,7 @@ def _breakdown_hover(
         f"<br>{label}: {value_formatter(val)}"
         for label, val in zip(breakdown_labels, component_totals)
     )
-    return f"{name}{lines}<br>Total: {value_formatter(total)}"
+    return f"{name}{lines}<br>Total: {value_formatter(total)}{meta_lines}"
 
 
 def build_hierarchy_data(
@@ -49,6 +69,7 @@ def build_hierarchy_data(
     value_formatter: Callable[[NumberLike], str],
     leaf_breakdowns: dict[str, tuple[NumberLike, ...]] | None = None,
     breakdown_labels: tuple[str, ...] = ("Part 1", "Part 2"),
+    module_metadata: dict[str, dict[str, str]] | None = None,
 ) -> HierarchyData:
     data = HierarchyData()
 
@@ -57,7 +78,8 @@ def build_hierarchy_data(
 
         root_hover = _breakdown_hover(
             root_module, root_total, value_formatter,
-            leaf_breakdowns, breakdown_labels, root_module + ".")
+            leaf_breakdowns, breakdown_labels, root_module + ".",
+            module_metadata)
 
         data.ids.append(root_module)
         data.labels.append(root_module)
@@ -96,7 +118,8 @@ def build_hierarchy_data(
 
             hover = _breakdown_hover(
                 path, total, value_formatter,
-                leaf_breakdowns, breakdown_labels, path + ".")
+                leaf_breakdowns, breakdown_labels, path + ".",
+                module_metadata)
 
             data.ids.append(node_id)
             data.labels.append(parts[-1])
@@ -138,13 +161,15 @@ class Plotter():
         self.module_parsed, self.total = result[0], result[1]
         self._leaf_breakdowns = result[2] if len(result) > 2 else None
         self._breakdown_labels = breakdown_labels or ("Part 1", "Part 2")
+        self._module_metadata = get_module_metadata(file_path)
 
         self.sorted_modules = sorted(self.module_parsed.items(),
                                      key=lambda x: sum(x[1].values()), reverse=True)[:20]
 
         self._hierarchy = build_hierarchy_data(
             self.sorted_modules, self.value_formatter,
-            self._leaf_breakdowns, self._breakdown_labels)
+            self._leaf_breakdowns, self._breakdown_labels,
+            self._module_metadata)
 
         self.fig = self._build_treemap()
 
@@ -223,12 +248,17 @@ class Plotter():
                 display_name = ".".join(modules[1:]) if len(
                     modules) > 1 else modules[0]
 
+                hover_text = f"{submodule}<br>{self.value_formatter(value)}"
+                hover_text += _metadata_hover_lines(
+                    submodule, self._module_metadata)
+
                 fig.add_trace(go.Bar(
                     y=[root_module],
                     x=[value],
                     name=f"{display_name} - {self.value_formatter(value)}",
                     orientation='h',
-                    hoverinfo="name",
+                    hoverinfo="text",
+                    hovertext=[hover_text],
                     legendgroup=group_name,
                     legendgrouptitle_text=group_name,
                     marker=dict(line=dict(width=1)),
