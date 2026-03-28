@@ -2,6 +2,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
 from ..helpers import get_parsed_file
+import dash_bootstrap_components as dbc
 
 
 def time_fmt(seconds: float):
@@ -16,6 +17,20 @@ def time_fmt(seconds: float):
         minutes = int(seconds // 60)
         remaining_seconds = seconds % 60
         return f"{minutes}m {remaining_seconds:.1f}s"
+    
+def get_badge(seconds: float):
+    if seconds < 1:
+        color = 'success'
+    elif seconds < 5:
+        color = 'warning'
+    else:
+        color = 'danger'
+
+    return dbc.Badge(
+        time_fmt(seconds),
+        color=color,
+        className='float-end'
+    )
 
 
 def module_parser(file_path: str):

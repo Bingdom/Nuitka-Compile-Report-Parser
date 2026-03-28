@@ -3,6 +3,7 @@ from collections import defaultdict
 from .plotter import Plotter
 from .._types import NumberLike
 from ..helpers import has_nuitka_version_upgraded_report, get_parsed_file, get_nuitka_version
+import dash_bootstrap_components as dbc
 
 
 def sizeof_fmt(bytes_count: int | float):
@@ -15,6 +16,21 @@ def sizeof_fmt(bytes_count: int | float):
             return f"{bytes_count:3.1f} {unit}"
         bytes_count /= 1024.0
     return f"{bytes_count:.1f}YiB"
+
+
+def get_badge(size_bytes: NumberLike):
+    if size_bytes < 1024 ** 2:  # < 1 MiB
+        color = 'success'
+    elif size_bytes < 10 * 1024 ** 2:  # < 10 MiB
+        color = 'warning'
+    else:
+        color = 'danger'
+
+    return dbc.Badge(
+        sizeof_fmt(size_bytes),
+        color=color,
+        className='float-end'
+    )
 
 
 def module_blob_size(root: ET.Element):

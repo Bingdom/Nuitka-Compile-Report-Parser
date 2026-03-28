@@ -158,3 +158,23 @@ def get_module_metadata(file_path: str) -> dict[str, dict[str, str]]:
             metadata[name] = meta
 
     return metadata
+
+
+def get_module_stats(file_path: str) -> tuple[int, int]:
+    """
+    Returns a tuple of the total number of root modules, and a total number of files (including root modules).
+    """
+    root = get_parsed_file(file_path)
+
+    modules = root.findall("module")
+    root_modules = set()
+    filenames = set()
+
+    for module in modules:
+        name = module.get("name", "Unknown")
+        root_module = name.split(".")[0]
+        root_modules.add(root_module)
+        if "." in name:
+            filenames.add(name)
+
+    return len(root_modules), len(filenames)

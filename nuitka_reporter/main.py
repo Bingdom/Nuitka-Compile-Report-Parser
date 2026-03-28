@@ -13,7 +13,7 @@ from ._types import NumberLike
 from .plot import size, time
 from .plot.plotter import Plotter
 from .experiments import dependency_from_report
-from .helpers import get_command_line, get_data_files, get_distributions, get_included, get_plugin_options
+from .helpers import get_command_line, get_data_files, get_distributions, get_included, get_plugin_options, get_module_stats
 from typing import NamedTuple
 
 BOOTSTRAP_CSS = '<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" crossorigin="anonymous">'
@@ -195,10 +195,10 @@ class LargestSubmodule(NamedTuple):
     """
     module: str
     submodule: str
-    value: str
+    value: NumberLike
 
 
-def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, NumberLike]]], formatter: Callable[[NumberLike], str]):
+def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, NumberLike]]]):
     """
     From within a module, find the largest submodule and format its value using the provided formatter. Returns a list of LargestSubmodule named tuples.
     """
@@ -216,7 +216,7 @@ def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, Numbe
             root_module + ".") else ' (root)'
 
         largest_submodules.append(LargestSubmodule(
-            root_module, biggest_module, formatter(biggest_value)))
+            root_module, biggest_module, biggest_value))
 
     return largest_submodules
 
@@ -348,9 +348,9 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     dep_fig, dep_graph = dependency_from_report.get_fig(filename)
 
     longest_times = get_largest_submodule(
-        time_graph.sorted_modules, time.time_fmt)
+        time_graph.sorted_modules)
     largest_sizes = get_largest_submodule(
-        size_graph.sorted_modules, size.sizeof_fmt)
+        size_graph.sorted_modules)
 
     # --- Build each section's inner HTML via Dash components ---
 
@@ -460,25 +460,31 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
             dbc.Col(
                 dbc.Card([
                     dbc.CardBody([
-                        html.H6('Total time', className='text-muted'),
-                        html.H4(time.time_fmt(time_graph.total)),
+                        html.H6('Optimization time ', className='text-muted'),
+                        html.H4(str(
+                            time.time_fmt(sum(opt1 + opt2 for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A'),
                     ])
                 ], className='text-center stat-card'),
-                md=6,
+                md=4,
             ),
             dbc.Col(
                 dbc.Card([
                     dbc.CardBody([
-                        html.H6('Root modules',
-                                className='text-muted'),
-                        html.H4(str(len(time_graph.module_parsed))),
-                        html.Small(
-                            f"({sum(len(s) for s in time_graph.module_parsed.values())} submodules)",
-                            className='text-muted',
-                        ),
+                        html.H6('C generation time ', className='text-muted'),
+                        html.H4(str(
+                            time.time_fmt(sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A'),
                     ])
                 ], className='text-center stat-card'),
-                md=6,
+                md=4,
+            ),
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardBody([
+                        html.H6('Total time', className='text-muted'),
+                        html.H4(time.time_fmt(time_graph.total)),
+                    ])
+                ], className='text-center stat-card'),
+                md=4,
             ),
         ], className='mb-3'),
         html.H6('Largest submodule transpilation times',
@@ -486,11 +492,13 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         dbc.ListGroup([
             dbc.ListGroupItem([
                 html.Span(f"{module}{submodule}"),
-                dbc.Badge(t, color='info', className='float-end'),
+                time.get_badge(t),
             ])
             for module, submodule, t in longest_times
         ], className='mb-3'),
     ])) + switchable_graph_html(time_graph, 'time_graph', include_plotlyjs=True)
+
+    total_modules, total_files = get_module_stats(filename)
 
     # Build Size
     size_html = component_to_html(html.Div([
@@ -498,35 +506,41 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
             dbc.Col(
                 dbc.Card([
                     dbc.CardBody([
-                        html.H6(
-                            f'Total {size.get_size_type(filename)} size',
-                            className='text-muted',
-                        ),
-                        html.H4(size.sizeof_fmt(size_graph.total)),
-                    ])
+                         html.H6('Modules',
+                                 className='text-muted'),
+                         html.H4(str(total_modules)),
+                         ])
                 ], className='text-center stat-card'),
-                md=6,
+                md=4,
             ),
             dbc.Col(
                 dbc.Card([
                     dbc.CardBody([
-                        html.H6('Root Modules',
-                                className='text-muted'),
-                        html.H4(str(len(size_graph.module_parsed))),
-                        html.Small(
-                            f"({sum(len(s) for s in size_graph.module_parsed.values())} submodules)",
-                            className='text-muted',
-                        ),
-                    ])
+                         html.H6('Files',
+                                 className='text-muted'),
+                         html.H4(str(total_files)),
+                         ])
                 ], className='text-center stat-card'),
-                md=6,
+                md=4,
+            ),
+            dbc.Col(
+                dbc.Card([
+                    dbc.CardBody([
+                         html.H6(
+                             f'Total {size.get_size_type(filename)} size',
+                             className='text-muted',
+                         ),
+                         html.H4(size.sizeof_fmt(size_graph.total)),
+                         ])
+                ], className='text-center stat-card'),
+                md=4,
             ),
         ], className='mb-3'),
         html.H6('Largest submodule sizes', className='mt-3'),
         dbc.ListGroup([
             dbc.ListGroupItem([
                 html.Span(f"{module}{submodule}"),
-                dbc.Badge(s, color='info', className='float-end'),
+                size.get_badge(s),
             ])
             for module, submodule, s in largest_sizes
         ], className='mb-3'),
@@ -546,7 +560,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         _accordion_item('Included Extensions & DLLs', ext_dll_html),
         _accordion_item('Data Files', data_files_html),
         _accordion_item('Transpilation Time', time_html, expanded=True),
-        _accordion_item('Build Size', size_html, expanded=True),
+        _accordion_item(
+            f'Build Size ({size.get_size_type(filename)})', size_html, expanded=True),
         _accordion_item('Dependency Graph', dep_html),
     ])
 
@@ -589,4 +604,4 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     with open(export_filename, "w", encoding="utf-8") as f:
         f.write(minify_html_onepass.minify(
             full_html, minify_js=True, minify_css=True))
-    return export_filename
+        return export_filename
