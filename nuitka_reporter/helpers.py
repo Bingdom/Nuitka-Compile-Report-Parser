@@ -102,15 +102,16 @@ def get_distributions(file_path: str) -> list[tuple[str, str, str]]:
     return to_return
 
 
-def get_included(file_path: str, element_name: str) -> list[tuple[str, str, str, str, str]]:
+def get_included(file_path: str, element_name: str) -> list[tuple[str, str, str, str, str, str]]:
     """
-    Returns a list of tuples (name, dest_path, package, ignored, reason) for each
+    Returns a list of tuples (name, source_path, dest_path, package, ignored, reason) for each
     included element in the compilation report.
     """
     root = get_parsed_file(file_path)
     return [
         (
             ext.get("name", "unknown"),
+            ext.get("source_path", "unknown"),
             ext.get("dest_path", "unknown"),
             ext.get("package", ""),
             ext.get("ignored", "unknown"),
@@ -118,6 +119,7 @@ def get_included(file_path: str, element_name: str) -> list[tuple[str, str, str,
         )
         for ext in root.findall(element_name)
     ]
+
 
 def get_data_files(file_path: str) -> list[tuple[str, str, int, str, str]]:
     """

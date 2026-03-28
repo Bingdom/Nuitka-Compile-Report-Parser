@@ -311,6 +311,7 @@ def get_included_table(filename: str, element_name: str):
     return dbc.Table([
         html.Thead(html.Tr([
             html.Th('Name'),
+            html.Th('Src Path'),
             html.Th('Dest Path'),
             html.Th('Package'),
             html.Th('Ignored'),
@@ -319,14 +320,15 @@ def get_included_table(filename: str, element_name: str):
         html.Tbody([
             html.Tr([
                 html.Td(name),
+                html.Td(html.Code(src)),
                 html.Td(html.Code(dest)),
                 html.Td(pkg or html.Span(
                     '—', className='text-muted')),
                 html.Td(html.Code(ignored)) if ignored else html.Td(html.Span(
                     '—', className='text-muted')),
                 html.Td(reason),
-            ]) for name, dest, pkg, ignored, reason in get_included(filename, element_name)
-        ]) if get_included(filename, element_name) else html.Tbody(html.Tr(html.Td('None', colSpan=5, className='text-muted text-center'))),
+            ]) for name, src, dest, pkg, ignored, reason in get_included(filename, element_name)
+        ]) if get_included(filename, element_name) else html.Tbody(html.Tr(html.Td('None', colSpan=6, className='text-muted text-center'))),
     ], striped=True, hover=True, bordered=True)
 
 
