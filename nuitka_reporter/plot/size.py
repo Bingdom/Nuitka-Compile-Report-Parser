@@ -128,7 +128,7 @@ def get_plotter(filename: str):
     Returns a Plotter instance that analyzes the bytecode build size by root module and its submodules. The values in the plot are formatted using the `sizeof_fmt` function.
     """
     return Plotter(filename, module_parser, sizeof_fmt,
-                   f"{get_size_type(filename).capitalize()} build size by Root Module with Submodules", f"{get_size_type(filename).capitalize()} Build Size (bytes)", "Root Module Name")
+                   f"{get_size_type(filename).capitalize()} build size + included files", f"{get_size_type(filename).capitalize()} Build Size (bytes)", "Root Module Name")
 
 # # Sort root modules by total time taken
 # sorted_modules = sorted(module_sizes.items(),
