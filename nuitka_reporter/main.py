@@ -352,8 +352,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     largest_sizes = get_largest_submodule(
         size_graph.sorted_modules)
 
-    nuitka_updated = has_nuitka_version_upgraded_report(
-        get_nuitka_version(filename))
+    c_gen_time = sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items(
+    )) if time_graph._leaf_breakdowns else 0
 
     # --- Build each section's inner HTML via Dash components ---
 
@@ -475,8 +475,8 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
                     dbc.CardBody([
                         html.H6('C generation time ', className='text-muted'),
                         html.H4(str(
-                            time.time_fmt(sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A',
-                            className='text-warning' if not nuitka_updated else None
+                            time.time_fmt(c_gen_time) if time_graph._leaf_breakdowns else 'N/A'),
+                            className='text-warning' if c_gen_time == 0 else None
                         ),
                     ])
                 ], className='text-center stat-card'),
@@ -493,7 +493,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
             ),
         ], className='mb-3'),
         dbc.Alert(
-            'Upgrade Nuitka to v4.1 or higher to see c code generation times', color='warning') if not nuitka_updated else None,
+            'Upgrade Nuitka to see c code generation times', color='warning') if c_gen_time == 0 else None,
         html.H6('Largest submodule transpilation times',
                 className='mt-3'),
         dbc.ListGroup([
