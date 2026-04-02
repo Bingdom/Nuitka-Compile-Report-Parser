@@ -64,6 +64,21 @@ def _breakdown_hover(
     return f"{name}{lines}<br>Total: {value_formatter(total)}{meta_lines}"
 
 
+def split_path(path: str) -> tuple[list[str], str]:
+    """Split a module path into parts, handling both '.' and '/' separators."""
+    if "/" in path:
+        return path.split("/"), '/'
+    return path.split("."), '.'
+
+
+def get_parent_path(path: str) -> str:
+    """Get the parent path of a module path, handling both '.' and '/' separators."""
+    parts, joinChr = split_path(path)
+    if len(parts) <= 1:
+        return ""
+    return joinChr.join(parts[:-1])
+
+
 def build_hierarchy_data(
     sorted_modules: list[tuple[str, defaultdict[str, NumberLike]]],
     value_formatter: Callable[[NumberLike], str],
@@ -102,17 +117,16 @@ def build_hierarchy_data(
         all_paths: set[str] = set()
 
         for submodule in submodules:
-            parts = submodule.split(".")
+            parts, joinChr = split_path(submodule)
             for i in range(1, len(parts) + 1):
-                all_paths.add(".".join(parts[:i]))
+                all_paths.add(joinChr.join(parts[:i]))
 
         # Compute totals (each node = own value + all descendants)
         path_totals: dict[str, NumberLike] = {}
         for path in all_paths:
             total = path_values.get(path, 0)
-            prefix = path + "."
             for other_path, val in path_values.items():
-                if other_path.startswith(prefix):
+                if other_path.startswith(path + ".") or other_path.startswith(path + "/"):
                     total += val
             path_totals[path] = total
 
@@ -120,7 +134,7 @@ def build_hierarchy_data(
         # leaf so the treemap/sunburst accounts for the node's own value.
         has_children: set[str] = set()
         for path in all_paths:
-            parent = ".".join(path.split(".")[:-1])
+            parent = get_parent_path(path)
             if parent:
                 has_children.add(parent)
 
@@ -133,7 +147,6 @@ def build_hierarchy_data(
                 else:
                     self_id = f"{root_module}/{path}/(self)"
                     parent_id = f"{root_module}/{path}"
-
                 self_hover = _breakdown_hover(
                     path, own_value, value_formatter,
                     leaf_breakdowns, breakdown_labels, path + ".\x00",
@@ -148,9 +161,10 @@ def build_hierarchy_data(
 
         # Add child nodes sorted by depth then name (skip root, already added)
         for path in sorted(all_paths - {root_module}, key=lambda x: (x.count("."), x)):
-            parts = path.split(".")
-            parent_path = ".".join(parts[:-1])
-            parent_id = f"{root_module}/{parent_path}" if parent_path != root_module else root_module
+            # Because this may also include non-module paths (e.g. "Included files/somefile.py"), split on both "." and "/" to find the parent path
+            parent_path = get_parent_path(path)
+            parent_id = root_module if (
+                not parent_path or parent_path == root_module) else f"{root_module}/{parent_path}"
             node_id = f"{root_module}/{path}"
 
             # Use the node's total (own + descendants) if it has children,
@@ -163,7 +177,7 @@ def build_hierarchy_data(
                 module_metadata)
 
             data.ids.append(node_id)
-            data.labels.append(parts[-1])
+            data.labels.append(split_path(path)[0][-1])
             data.parents.append(parent_id)
             data.values.append(total)
             data.hover_text.append(hover)
