@@ -26,13 +26,19 @@ def to_semver(version: str) -> str:
     return f"{major}.{minor}.{patch}{pre}"
 
 
-def get_nuitka_version(file_path: str):
+def get_nuitka_version_raw(file_path: str) -> str:
     """
-    Returns the Nuitka version used for the build.
+    Returns the raw Nuitka version string from the report.
     """
     root = get_parsed_file(file_path)
+    return root.get("nuitka_version", "unknown")
 
-    vers_string = root.get("nuitka_version", "unknown")
+
+def get_nuitka_version(file_path: str):
+    """
+    Returns the Nuitka version used for the build, parsed into a Version object for comparison
+    """
+    vers_string = get_nuitka_version_raw(file_path)
 
     try:
         return Version(vers_string)

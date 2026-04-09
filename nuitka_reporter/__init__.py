@@ -1,5 +1,4 @@
 from .main import to_html
-
-__version__ = "1.2.1"
+from ._version import __version__
 
 __all__ = ["to_html"]

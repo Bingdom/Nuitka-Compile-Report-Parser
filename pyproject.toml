@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.version]
-path = "nuitka_reporter/__init__.py"
+path = "nuitka_reporter/_version.py"
 
 [project]
 name = "nuitka_reporter"
