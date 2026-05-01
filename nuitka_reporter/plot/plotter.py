@@ -205,7 +205,7 @@ class Plotter():
     sorted_modules: list[tuple[str, defaultdict[str, NumberLike]]]
     fig: go.Figure
 
-    def __init__(self, file_path: str, module_parser: Callable[..., tuple], value_formatter: Callable[[NumberLike], str], title: str, xaxis_title: str, yaxis_title: str, breakdown_labels: tuple[str, str] | None = None):
+    def __init__(self, file_path: str, module_parser: Callable[..., tuple], value_formatter: Callable[[NumberLike], str], title: str, xaxis_title: str, yaxis_title: str, breakdown_labels: tuple[str, str, str] | None = None):
         self.file_path = file_path
         self.value_formatter = value_formatter
         self.title = title
