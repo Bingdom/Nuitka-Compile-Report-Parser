@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
-from ..helpers import get_parsed_file
+from ..helpers import get_parsed_file, resolve_module_name
 import dash_bootstrap_components as dbc
 
 
@@ -17,7 +17,8 @@ def time_fmt(seconds: float):
         minutes = int(seconds // 60)
         remaining_seconds = seconds % 60
         return f"{minutes}m {remaining_seconds:.1f}s"
-    
+
+
 def get_badge(seconds: float):
     if seconds < 1:
         color = 'success'
@@ -54,7 +55,9 @@ def module_parser(file_path: str):
 
     # Iterate over modules and sum optimization times
     for module in root.findall("module"):
-        module_name = module.get("name", "Unknown")
+        original = module.get("name", "Unknown")
+        source_path = module.get("source_path", "")
+        module_name = resolve_module_name(original, source_path)
         # Assume self if no parent
         modules = module_name.split(".")
         parent_module = modules[0]

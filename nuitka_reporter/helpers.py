@@ -145,6 +145,40 @@ def get_data_files(file_path: str) -> list[tuple[str, str, int, str, str]]:
     ]
 
 
+def resolve_module_name(name: str, source_path: str) -> str:
+    """
+    If source_path begins with ${cwd}, derives the module name from the
+    project-relative path and prefixes it with 'project.'.
+    Otherwise returns the original name unchanged.
+    """
+    if not source_path.startswith("${cwd}"):
+        return name
+    rel = source_path[len("${cwd}"):].lstrip("/\\").replace("\\", "/")
+    parts = rel.split("/")
+    if parts and parts[-1].endswith(".py"):
+        parts[-1] = parts[-1][:-3]
+    if parts and parts[-1] == "__init__":
+        parts.pop()
+    if not parts:
+        return name
+    return "project." + ".".join(parts)
+
+
+def build_module_name_map(root) -> dict[str, str]:
+    """
+    Builds a mapping from original module name to remapped name for all
+    modules whose source_path begins with ${cwd}.
+    """
+    mapping: dict[str, str] = {}
+    for module in root.findall("module"):
+        original = module.get("name", "")
+        source_path = module.get("source_path", "")
+        remapped = resolve_module_name(original, source_path)
+        if remapped != original:
+            mapping[original] = remapped
+    return mapping
+
+
 def get_module_metadata(file_path: str) -> dict[str, dict[str, str]]:
     """
     Returns a dict mapping module name to its metadata (kind, usage, reason, source_path)
@@ -154,7 +188,9 @@ def get_module_metadata(file_path: str) -> dict[str, dict[str, str]]:
     metadata: dict[str, dict[str, str]] = {}
 
     for module in root.findall("module"):
-        name = module.get("name", "Unknown")
+        original = module.get("name", "Unknown")
+        source_path = module.get("source_path", "")
+        name = resolve_module_name(original, source_path)
         meta: dict[str, str] = {}
         for attr in ("kind", "usage", "reason", "source_path"):
             val = module.get(attr)
@@ -177,7 +213,9 @@ def get_module_stats(file_path: str) -> tuple[int, int]:
     filenames = set()
 
     for module in modules:
-        name = module.get("name", "Unknown")
+        original = module.get("name", "Unknown")
+        source_path = module.get("source_path", "")
+        name = resolve_module_name(original, source_path)
         root_module = name.split(".")[0]
         root_modules.add(root_module)
         if "." in name:

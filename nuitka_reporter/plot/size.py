@@ -2,7 +2,7 @@ import xml.etree.ElementTree as ET
 from collections import defaultdict
 from .plotter import Plotter
 from .._types import NumberLike
-from ..helpers import has_nuitka_version_upgraded_report, get_parsed_file, get_nuitka_version
+from ..helpers import has_nuitka_version_upgraded_report, get_parsed_file, get_nuitka_version, resolve_module_name, build_module_name_map
 import dash_bootstrap_components as dbc
 
 
@@ -44,10 +44,12 @@ def module_blob_size(root: ET.Element):
 
     # Iterate over modules and sum sizes
     for data_composer in root.findall("data_composer"):
+        name_map = build_module_name_map(root)
         for module in data_composer.findall("module_data"):
             module_name = module.get("blob_name", "Unknown")
             if module_name.split(".")[0] == "":
                 module_name = module.get("filename", "Unknown")
+            module_name = name_map.get(module_name, module_name)
 
             modules = module_name.split(".")
 
@@ -78,7 +80,9 @@ def module_object_file_size(root: ET.Element):
     for module in root.findall("module"):
         for c_comp_res in module.findall("c-compilation-resources"):
             for object_size in c_comp_res.findall("object-file"):
-                module_name = module.get("name", "Unknown")
+                original = module.get("name", "Unknown")
+                source_path = module.get("source_path", "")
+                module_name = resolve_module_name(original, source_path)
                 if module_name.split(".")[0] == "":
                     module_name = module.get("filename", "Unknown")
 
