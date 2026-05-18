@@ -15,7 +15,7 @@ def to_semver(version: str) -> str:
     Converts the nuitka version to a semantic version format for comparison.
     """
     match = re.match(
-        r'^(\d+)\.(\d+)(?:\.(\d+))?([a-z]+)(\d+)?$', version, re.IGNORECASE)
+        r'^(\d+)\.(\d+)(?:\.(\d+))?([a-z]+)?(\d+)?$', version, re.IGNORECASE)
     if not match:
         raise ValueError(f"Unrecognized version format: {version}")
 
