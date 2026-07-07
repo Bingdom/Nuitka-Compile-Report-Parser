@@ -1,10 +1,11 @@
 import os
 import re
 from collections import defaultdict
+import warnings
 from html import escape as html_escape
 
 import minify_html_onepass
-from dash import dcc, html
+from dash import html
 import plotly.graph_objects as go
 from dash.development.base_component import Component
 import dash_bootstrap_components as dbc
@@ -87,6 +88,8 @@ _VOID_ELEMENTS = frozenset({
     'br', 'hr', 'img', 'input', 'meta', 'link', 'area',
     'base', 'col', 'embed', 'source', 'track', 'wbr',
 })
+
+WARN_NUITKA_DIFFABLE_FLAG = "Nuitka compiled the project with the '--report-diffable' flag. Data will be excluded from the report. Remove this flag to generate a more detailed report."
 
 
 def _camel_to_kebab(name: str) -> str:
@@ -282,8 +285,12 @@ def component_to_html(component: go.Figure | Component | list[Component]) -> str
 _accordion_counter = 0
 
 
-def _accordion_item(title: str, body_html: str, expanded: bool = False) -> str:
+def _accordion_item(title: str, body_html: str | None, expanded: bool = False) -> str:
     """Build a single Bootstrap 5 accordion item as raw HTML."""
+
+    if body_html is None:
+        return ''
+
     global _accordion_counter
     _accordion_counter += 1
     item_id = f"acc-item-{_accordion_counter}"
@@ -341,17 +348,25 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     _accordion_counter = 0
     _has_included_plotlyjs = False
 
-    size_graph = size.get_plotter(filename)
-    time_graph = time.get_plotter(filename)
+    cli_args = get_command_line(filename)
+
+    data_available = not "--report-diffable" in cli_args
+
+    if data_available: 
+        size_graph = size.get_plotter(filename)
+        time_graph = time.get_plotter(filename) 
+
+        longest_times = get_largest_submodule(
+            time_graph.sorted_modules)
+        largest_sizes = get_largest_submodule(
+            size_graph.sorted_modules)
+
+        c_gen_time = sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items(
+        )) if time_graph._leaf_breakdowns else 0
+    else:
+        warnings.warn(WARN_NUITKA_DIFFABLE_FLAG)
+
     dep_fig, dep_graph = dependency_from_report.get_fig(filename)
-
-    longest_times = get_largest_submodule(
-        time_graph.sorted_modules)
-    largest_sizes = get_largest_submodule(
-        size_graph.sorted_modules)
-
-    c_gen_time = sum(conv for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items(
-    )) if time_graph._leaf_breakdowns else 0
 
     # --- Build each section's inner HTML via Dash components ---
 
@@ -359,7 +374,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     cmd_html = component_to_html(
         dbc.ListGroup([
             dbc.ListGroupItem(html.Code(command))
-            for command in get_command_line(filename)
+            for command in cli_args
         ])
     )
 
@@ -455,101 +470,111 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
         ], striped=True, hover=True, bordered=True)
     )
 
-    # Transpilation Time
-    time_html = component_to_html(html.Div([
-        dbc.Row([
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardBody([
-                        html.H6('Optimization time ', className='text-muted'),
-                        html.H4(str(
-                            time.time_fmt(sum(opt1 + opt2 for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A'),
-                    ])
-                ], className='text-center stat-card'),
-                md=4,
-            ),
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardBody([
-                        html.H6('C generation time ', className='text-muted'),
-                        html.H4(str(
-                            time.time_fmt(c_gen_time) if time_graph._leaf_breakdowns else 'N/A'),
-                            className='text-warning' if c_gen_time == 0 else None
-                        ),
-                    ])
-                ], className='text-center stat-card'),
-                md=4,
-            ),
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardBody([
-                        html.H6('Total time', className='text-muted'),
-                        html.H4(time.time_fmt(time_graph.total)),
-                    ])
-                ], className='text-center stat-card'),
-                md=4,
-            ),
-        ], className='mb-3'),
-        dbc.Alert(
-            'Upgrade Nuitka to see c code generation times', color='warning') if c_gen_time == 0 else None,
-        html.H6('Largest submodule transpilation times',
-                className='mt-3'),
-        dbc.ListGroup([
-            dbc.ListGroupItem([
-                html.Span(f"{module}{submodule}"),
-                time.get_badge(t),
-            ])
-            for module, submodule, t in longest_times
-        ], className='mb-3'),
-    ])) + switchable_graph_html(time_graph, 'time_graph', include_plotlyjs=True)
+    if data_available:
+        # Transpilation Time
+        time_html = component_to_html(html.Div([
+            dbc.Row([
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6('Optimization time ', className='text-muted'),
+                            html.H4(str(
+                                time.time_fmt(sum(opt1 + opt2 for module, (opt1, opt2, conv) in time_graph._leaf_breakdowns.items()))) if time_graph._leaf_breakdowns else 'N/A'),
+                        ])
+                    ], className='text-center stat-card'),
+                    md=4,
+                ),
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6('C generation time ', className='text-muted'),
+                            html.H4(str(
+                                time.time_fmt(c_gen_time) if time_graph._leaf_breakdowns else 'N/A'),
+                                className='text-warning' if c_gen_time == 0 else None
+                            ),
+                        ])
+                    ], className='text-center stat-card'),
+                    md=4,
+                ),
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6('Total time', className='text-muted'),
+                            html.H4(time.time_fmt(time_graph.total)),
+                        ])
+                    ], className='text-center stat-card'),
+                    md=4,
+                ),
+            ], className='mb-3'),
+            dbc.Alert(
+                'Upgrade Nuitka to see c code generation times', color='warning') if c_gen_time == 0 else None,
+            html.H6('Largest submodule transpilation times',
+                    className='mt-3'),
+            dbc.ListGroup([
+                dbc.ListGroupItem([
+                    html.Span(f"{module}{submodule}"),
+                    time.get_badge(t),
+                ])
+                for module, submodule, t in longest_times
+            ], className='mb-3'),
+        ])) + switchable_graph_html(time_graph, 'time_graph')
 
-    total_modules, total_files = get_module_stats(filename)
+        total_modules, total_files = get_module_stats(filename)
 
-    # Build Size
-    size_html = component_to_html(html.Div([
-        dbc.Row([
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardBody([
-                         html.H6('Modules',
-                                 className='text-muted'),
-                         html.H4(str(total_modules)),
-                         ])
-                ], className='text-center stat-card'),
-                md=4,
-            ),
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardBody([
-                         html.H6('Files',
-                                 className='text-muted'),
-                         html.H4(str(total_files)),
-                         ])
-                ], className='text-center stat-card'),
-                md=4,
-            ),
-            dbc.Col(
-                dbc.Card([
-                    dbc.CardBody([
-                         html.H6(
-                             f'Total {size.get_size_type(filename)} size',
-                             className='text-muted',
-                         ),
-                         html.H4(size.sizeof_fmt(size_graph.total)),
-                         ])
-                ], className='text-center stat-card'),
-                md=4,
-            ),
-        ], className='mb-3'),
-        html.H6('Largest submodule sizes', className='mt-3'),
-        dbc.ListGroup([
-            dbc.ListGroupItem([
-                html.Span(f"{module}{submodule}"),
-                size.get_badge(s),
-            ])
-            for module, submodule, s in largest_sizes
-        ], className='mb-3'),
-    ])) + switchable_graph_html(size_graph, 'size_graph')
+        # Build Size
+        size_html = component_to_html(html.Div([
+            dbc.Row([
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6('Modules',
+                                    className='text-muted'),
+                            html.H4(str(total_modules)),
+                            ])
+                    ], className='text-center stat-card'),
+                    md=4,
+                ),
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6('Files',
+                                    className='text-muted'),
+                            html.H4(str(total_files)),
+                            ])
+                    ], className='text-center stat-card'),
+                    md=4,
+                ),
+                dbc.Col(
+                    dbc.Card([
+                        dbc.CardBody([
+                            html.H6(
+                                f'Total {size.get_size_type(filename)} size',
+                                className='text-muted',
+                            ),
+                            html.H4(size.sizeof_fmt(size_graph.total)),
+                            ])
+                    ], className='text-center stat-card'),
+                    md=4,
+                ),
+            ], className='mb-3'),
+            html.H6('Largest submodule sizes', className='mt-3'),
+            dbc.ListGroup([
+                dbc.ListGroupItem([
+                    html.Span(f"{module}{submodule}"),
+                    size.get_badge(s),
+                ])
+                for module, submodule, s in largest_sizes
+            ], className='mb-3'),
+        ])) + switchable_graph_html(size_graph, 'size_graph')
+    else:
+        html_warn = component_to_html(
+            dbc.Alert(
+                WARN_NUITKA_DIFFABLE_FLAG,
+                color='warning'
+            )
+        )
+        time_html = html_warn
+        size_html = html_warn
 
     # Dependency Graph
     dep_html = component_to_html(html.P([
