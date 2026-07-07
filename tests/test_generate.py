@@ -25,9 +25,19 @@ def test_generate_4_1():
         current_dir, "data/compilation-report_4.1.html")
     generate(filename, output_filename)
 
+    with open(output_filename, encoding="utf-8") as f:
+        html = f.read()
+
+    assert html.count("cdn.plot.ly") == 1, "Plotly.js should only be included once in the HTML output"
+
 def test_generate_4_1_diffable():
     current_dir = os.path.dirname(__file__)
     filename = os.path.join(current_dir, "data/compilation-report_4.1_diffable.xml")
     output_filename = os.path.join(
         current_dir, "data/compilation-report_4.1_diffable.html")
     generate(filename, output_filename)
+
+    with open(output_filename, encoding="utf-8") as f:
+        html = f.read()
+
+    assert html.count("cdn.plot.ly") == 1, "Plotly.js should only be included once in the HTML output"
