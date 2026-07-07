@@ -5,6 +5,7 @@ from html import escape as html_escape
 
 import minify_html_onepass
 from dash import dcc, html
+import plotly.graph_objects as go
 from dash.development.base_component import Component
 import dash_bootstrap_components as dbc
 
@@ -165,12 +166,9 @@ def _dbc_extra_classes(comp_type: str, props: dict) -> str:
 
 def switchable_graph_html(plotter: Plotter, graph_id: str, include_plotlyjs: bool = False) -> str:
     """Generate raw HTML with Bootstrap-styled toggle buttons to switch between bar chart, treemap, and sunburst."""
-    bar_html = plotter.get_figure("bar").to_html(
-        include_plotlyjs='cdn' if include_plotlyjs else False, full_html=False)
-    treemap_html = plotter.get_figure("treemap").to_html(
-        include_plotlyjs=False, full_html=False)
-    sunburst_html = plotter.get_figure("sunburst").to_html(
-        include_plotlyjs=False, full_html=False)
+    bar_html = component_to_html(plotter.get_figure("bar"))
+    treemap_html = component_to_html(plotter.get_figure("treemap"))
+    sunburst_html = component_to_html(plotter.get_figure("sunburst"))
 
     return (
         f'<div class="mb-3">'
@@ -220,24 +218,23 @@ def get_largest_submodule(sorted_modules: list[tuple[str, defaultdict[str, Numbe
 
     return largest_submodules
 
+_has_included_plotlyjs = False
 
-def component_to_html(component: Component | list[Component]) -> str:
+def component_to_html(component: go.Figure | Component | list[Component]) -> str:
     """
     Recursively converts Dash component(s) into an HTML string.
-    Supports standard html.*, dcc.Graph, and dash_bootstrap_components.*.
+    Supports standard html.*, go.Figure, and dash_bootstrap_components.*.
     Handles className, style, id, and href attributes.
     """
-    has_included_plotlyjs = False
-
-    def html_child(component: Component | list[Component]) -> str:
-        nonlocal has_included_plotlyjs
+    def html_child(component: go.Figure | Component | list[Component]) -> str:
+        global _has_included_plotlyjs
         if isinstance(component, list | tuple):
             return ''.join(html_child(child) for child in component)
 
-        if isinstance(component, dcc.Graph):
-            comp = component.figure.to_html(
-                include_plotlyjs='cdn' if not has_included_plotlyjs else False, full_html=False)
-            has_included_plotlyjs = True
+        if isinstance(component, go.Figure):
+            comp = component.to_html(
+                include_plotlyjs='cdn' if not _has_included_plotlyjs else False, full_html=False)
+            _has_included_plotlyjs = True
             return comp
 
         if isinstance(component, str | int | float):
@@ -340,8 +337,9 @@ def get_colour_badge(text: str, truth: bool):
 
 def to_html(filename: str, export_filename: str = os.path.join(".", "index.html")):
     """Input a compile report to output a html report file with visualizations and summaries of the build time, build size, and dependency graph. The HTML file is saved to the specified export filename (or default, index.html next to the specified compile report)."""
-    global _accordion_counter
+    global _accordion_counter, _has_included_plotlyjs
     _accordion_counter = 0
+    _has_included_plotlyjs = False
 
     size_graph = size.get_plotter(filename)
     time_graph = time.get_plotter(filename)
@@ -557,7 +555,7 @@ def to_html(filename: str, export_filename: str = os.path.join(".", "index.html"
     dep_html = component_to_html(html.P([
         'Node count: ',
         dbc.Badge(str(len(dep_graph.nodes())), color='secondary'),
-    ])) + dep_fig.to_html(include_plotlyjs=False, full_html=False)
+    ])) + component_to_html(dep_fig)
 
     # --- Assemble accordion ---
     accordion_items = ''.join([
