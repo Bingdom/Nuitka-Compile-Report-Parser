@@ -24,3 +24,10 @@ def test_generate_4_1():
     output_filename = os.path.join(
         current_dir, "data/compilation-report_4.1.html")
     generate(filename, output_filename)
+
+def test_generate_4_1_diffable():
+    current_dir = os.path.dirname(__file__)
+    filename = os.path.join(current_dir, "data/compilation-report_4.1_diffable.xml")
+    output_filename = os.path.join(
+        current_dir, "data/compilation-report_4.1_diffable.html")
+    generate(filename, output_filename)
