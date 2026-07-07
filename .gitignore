@@ -2,3 +2,4 @@ __pycache__
 *.html
 example.build
 example.dist
+.venv
